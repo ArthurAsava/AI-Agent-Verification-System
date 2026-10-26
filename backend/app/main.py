@@ -1,25 +1,41 @@
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.api.router import api_router
+from app.core.config import get_settings
+
+
+settings = get_settings()
 
 app = FastAPI(
-    title="AI Agent Verification System",
-    description="Backend API for SalesMesh agent registration and verification",
+    title=settings.APP_NAME,
+    description=(
+        "Backend API for SalesMesh agent registration "
+        "and identity verification."
+    ),
     version="0.1.0",
+    debug=settings.DEBUG,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.FRONTEND_URL],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
+)
+
+app.include_router(
+    api_router,
+    prefix=settings.API_V1_PREFIX,
 )
 
 
-@app.get("/")
+@app.get("/", tags=["Root"])
 def root():
     return {
-        "message": "AI Agent Verification System API",
+        "message": settings.APP_NAME,
         "status": "running",
         "version": "0.1.0",
-    }
-
-
-@app.get("/health")
-def health_check():
-    return {
-        "status": "healthy",
-        "service": "backend",
     }
