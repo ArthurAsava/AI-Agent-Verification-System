@@ -6,8 +6,17 @@ from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.exceptions import AppException, app_exception_handler
 
+import logging
+from app.core.logging_config import configure_logging
+
 
 settings = get_settings()
+
+configure_logging(
+    "DEBUG" if settings.DEBUG else "INFO"
+)
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -45,3 +54,5 @@ def root():
         "status": "running",
         "version": "0.1.0",
     }
+
+logger.info("FastAPI application configured")
