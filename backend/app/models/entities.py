@@ -4,6 +4,8 @@ import uuid
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy import Column, Table
+
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
@@ -44,6 +46,13 @@ class CheckStatus(str, enum.Enum):
     FAILED = "failed"
     NEEDS_REVIEW = "needs_review"
 
+Table(
+    "users",
+    Base.metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True),
+    schema="auth",
+    info={"external": True},
+)
 
 class Agent(Base):
     __tablename__ = "agents"
