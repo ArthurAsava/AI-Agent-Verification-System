@@ -1,8 +1,8 @@
 
 "use client";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import {
   AgentProfile,
@@ -160,19 +160,54 @@ export default function DashboardPage() {
         </form>
       )}
 
-      {profile && (
-        <section>
-          <h2>My Profile</h2>
-          <p>
-            Name: {profile.first_name}{" "}
-            {profile.last_name}
-          </p>
-          <p>Status: {profile.status}</p>
-          <p>
-            Phone: {profile.phone_number ?? "Not provided"}
-          </p>
-        </section>
-      )}
+      
+{profile && (
+  <section>
+    <h2>My Profile</h2>
+
+    <p>
+      Name: {profile.first_name}{" "}
+      {profile.last_name}
+    </p>
+
+    <p>
+      Status: {profile.status}
+    </p>
+
+    <p>
+      Phone: {profile.phone_number ?? "Not provided"}
+    </p>
+
+    {/* Phase 6: Agent Onboarding */}
+    <div style={{ marginTop: "24px" }}>
+      <h3>Agent Onboarding</h3>
+
+      <p>
+        Complete your personal information,
+        provide your sales background, and
+        prepare for identity verification.
+      </p>
+
+      <Link
+        href="/onboarding"
+        style={{
+          display: "inline-block",
+          marginTop: "12px",
+          padding: "12px 20px",
+          backgroundColor: "#2563eb",
+          color: "#ffffff",
+          borderRadius: "8px",
+          textDecoration: "none",
+          fontWeight: 600,
+        }}
+      >
+        Continue Onboarding →
+      </Link>
+    </div>
+  </section>
+)}
+
+
     </main>
   );
 }

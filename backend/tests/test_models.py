@@ -11,6 +11,7 @@ EXPECTED_TABLES = {
     "verification_checks",
     "fraud_assessments",
     "audit_logs",
+     "agent_onboarding",
 }
 
 
