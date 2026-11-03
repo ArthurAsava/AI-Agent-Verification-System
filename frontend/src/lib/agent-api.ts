@@ -133,3 +133,25 @@ export async function updateMyOnboarding(
     }
   );
 }
+
+
+export interface KycRequirements {
+  identity_documents: {
+    selection: string;
+    options: {
+      code: string;
+      name: string;
+      description: string;
+    }[];
+  };
+  guidelines: string[];
+  uploads_enabled: boolean;
+  verification_available: boolean;
+}
+
+export async function getKycRequirements():
+  Promise<KycRequirements> {
+  return authorizedRequest(
+    "/api/v1/kyc/requirements"
+  );
+}

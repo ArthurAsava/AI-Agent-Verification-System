@@ -9,6 +9,8 @@ import {
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+import KycChecklist from "@/components/KycChecklist";
+
 import OnboardingProgress from
   "@/components/OnboardingProgress";
 
@@ -291,48 +293,65 @@ export default function OnboardingPage() {
         </form>
       )}
 
-      {step === 3 && (
-        <section>
-          <h2>Prepare for KYC verification</h2>
+      
+{step === 3 && (
+  <section>
+    <h2>Prepare for KYC Verification</h2>
 
-          <p>
-            Your profile is{" "}
-            {data.progress.percentage}% complete.
-          </p>
+    <p>
+      Your profile is{" "}
+      <strong>
+        {data.progress.percentage}% complete.
+      </strong>
+    </p>
 
-          <p>
-            Before identity verification, ensure
-            your personal details are accurate.
-          </p>
+    <p>
+      Before proceeding with identity verification,
+      ensure that your personal information is
+      accurate and matches your identification
+      document.
+    </p>
 
-          <ul>
-            <li>
-              Have your valid identity document ready.
-            </li>
-            <li>
-              Ensure your details match the document.
-            </li>
-            <li>
-              Prepare for identity verification.
-            </li>
-          </ul>
+    {/* Phase 6: KYC requirements from FastAPI */}
+    <KycChecklist />
 
-          <p>
-            Document uploads will become available
-            in a later phase.
-          </p>
+    <div
+      style={{
+        display: "flex",
+        gap: "12px",
+        marginTop: "24px",
+        alignItems: "center",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setStep(2)}
+        style={{
+          padding: "10px 16px",
+          borderRadius: "6px",
+          cursor: "pointer",
+        }}
+      >
+        Edit Details
+      </button>
 
-          <button onClick={() => setStep(2)}>
-            Edit details
-          </button>
+      <Link
+        href="/dashboard"
+        style={{
+          display: "inline-block",
+          padding: "10px 16px",
+          backgroundColor: "#2563eb",
+          color: "#ffffff",
+          borderRadius: "6px",
+          textDecoration: "none",
+        }}
+      >
+        Return to Dashboard
+      </Link>
+    </div>
+  </section>
+)}
 
-          <p>
-            <Link href="/dashboard">
-              Return to dashboard
-            </Link>
-          </p>
-        </section>
-      )}
     </main>
   );
 }
