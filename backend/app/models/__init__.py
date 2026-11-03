@@ -5,3 +5,5 @@ from app.models.entities import (
     KYCDocument,
     VerificationCheck,
 )
+
+from app.models.onboarding import AgentOnboarding
