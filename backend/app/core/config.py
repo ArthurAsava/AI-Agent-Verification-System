@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     SUPABASE_PUBLISHABLE_KEY: str | None = None
     SUPABASE_SECRET_KEY: str | None = None
     DATABASE_URL: str | None = None
+    supabase_url: str | None = None
+    supabase_service_role_key: str | None = None
+    supabase_storage_bucket: str = "agent-kyc-documents"
 
     model_config = SettingsConfigDict(
         env_file=".env",
