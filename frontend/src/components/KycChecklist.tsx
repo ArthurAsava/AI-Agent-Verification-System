@@ -1,5 +1,6 @@
 
 "use client";
+import KycDocumentManager from "@/components/KycDocumentManager";
 
 import { useEffect, useState } from "react";
 
@@ -81,6 +82,7 @@ export default function KycChecklist() {
           documents at this stage.
         </p>
       )}
+      <KycDocumentManager />
     </section>
   );
 }
