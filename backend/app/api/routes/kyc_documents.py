@@ -15,6 +15,16 @@ from fastapi import (
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from fastapi import Response
+from app.services.kyc_retrieval_service import (
+    DocumentInfo,
+    DocumentNotFoundError,
+    DocumentRetrievalError,
+    list_agent_documents,
+    get_agent_document,
+    download_agent_document,
+)
+
 # Adjust these two imports to your existing project.
 from app.core.auth import CurrentUser, get_current_user
 from app.core.database import get_db
@@ -145,4 +155,107 @@ async def create_kyc_document(
         mime_type=result.mime_type,
         file_size_bytes=result.file_size_bytes,
         status=result.status,
+    )
+
+
+class KYCDocumentResponse(BaseModel):
+    document_id: uuid.UUID
+    agent_id: uuid.UUID
+    document_type: str
+    original_filename: str
+    mime_type: str
+    file_size_bytes: int
+    status: str
+
+
+def to_document_response(
+    document: DocumentInfo,
+) -> KYCDocumentResponse:
+    return KYCDocumentResponse(
+        document_id=document.id,
+        agent_id=document.agent_id,
+        document_type=document.document_type,
+        original_filename=document.original_filename,
+        mime_type=document.mime_type,
+        file_size_bytes=document.file_size_bytes,
+        status=document.status,
+    )
+
+
+@router.get(
+    "",
+    response_model=list[KYCDocumentResponse],
+)
+async def list_kyc_documents(
+    user: CurrentUser = Depends(get_current_user),
+):
+    try:
+        documents = await list_agent_documents(user.id)
+    except DocumentNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found.",
+        ) from exc
+
+    return [
+        to_document_response(document)
+        for document in documents
+    ]
+
+
+@router.get(
+    "/{document_id}",
+    response_model=KYCDocumentResponse,
+)
+async def get_kyc_document(
+    document_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+):
+    try:
+        document = await get_agent_document(
+            user.id,
+            document_id,
+        )
+    except DocumentNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found.",
+        ) from exc
+
+    return to_document_response(document)
+
+
+@router.get("/{document_id}/download")
+async def download_kyc_document(
+    document_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    storage: SupabaseStorageService = Depends(get_storage_service),
+):
+    try:
+        document, content = await download_agent_document(
+            user_id=user.id,
+            document_id=document_id,
+            storage=storage,
+        )
+    except DocumentNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found.",
+        ) from exc
+    except DocumentRetrievalError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Document download is unavailable.",
+        ) from exc
+
+    return Response(
+        content=content,
+        media_type=document.mime_type,
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="kyc-document-{document.id}"'
+            ),
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
     )
