@@ -234,6 +234,7 @@ async def test_download_rejects_bucket_mismatch(
     storage.download.assert_not_awaited()
 
 
+
 @pytest.mark.asyncio
 async def test_authorized_download_uses_stored_path(
     monkeypatch,
@@ -250,18 +251,30 @@ async def test_authorized_download_uses_stored_path(
         storage_bucket="agent-kyc-documents",
     )
 
+    # Mock Supabase Storage.
     storage = MagicMock()
     storage.bucket = "agent-kyc-documents"
     storage.download = AsyncMock(
         return_value=b"\x89PNG\r\n\x1a\n"
     )
 
+    # Mock authenticated document retrieval.
     monkeypatch.setattr(
         service,
         "get_agent_document",
         AsyncMock(return_value=document),
     )
 
+    # Mock audit logging to prevent real database access.
+    audit_mock = MagicMock()
+
+    monkeypatch.setattr(
+        service,
+        "_record_download_audit_sync",
+        audit_mock,
+    )
+
+    # Execute the document download.
     returned_document, content = (
         await service.download_agent_document(
             USER_ID,
@@ -270,9 +283,20 @@ async def test_authorized_download_uses_stored_path(
         )
     )
 
-    assert returned_document.id == DOCUMENT_ID
+    # Verify the correct document was returned.
+    assert returned_document == document
+
+    # Verify the downloaded content.
     assert content == b"\x89PNG\r\n\x1a\n"
 
+    # Verify Storage was accessed using the stored path.
     storage.download.assert_awaited_once_with(
         document.storage_path
     )
+
+    # Verify that successful downloads generate audit events.
+    audit_mock.assert_called_once_with(
+        USER_ID,
+        document,
+    )
+
