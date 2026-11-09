@@ -20,7 +20,9 @@ from app.services.verification.persistence import (
     VerificationIntegrityError,
     save_document_analysis,
 )
-
+from app.services.verification.document_integrity import (
+    verify_document_integrity,
+)
 
 @dataclass(frozen=True)
 class VerificationWorkflowResult:
@@ -59,6 +61,7 @@ def run_document_verification(
             "Agent does not exist."
         )
 
+
     document = db.execute(
         select(KYCDocument).where(
             KYCDocument.id == document_id,
@@ -71,14 +74,19 @@ def run_document_verification(
             "Document does not belong to the agent."
         )
 
-    # The current Agent model provides names.
-    # No independent ID number or DOB reference
-    # is assumed to exist.
+    # Verify document integrity before running OCR.
+    verify_document_integrity(
+        content=document_bytes,
+        expected_checksum=document.sha256_checksum,
+    )
+
+    # Construct the registered agent identity reference.
     reference = AgentIdentityReference(
         first_name=agent.first_name,
         last_name=agent.last_name,
     )
 
+    # Run the verification pipeline.
     pipeline_result = analyze_kyc_document(
         document_id=document.id,
         document_type=document.document_type,
@@ -87,6 +95,7 @@ def run_document_verification(
         agent_reference=reference,
     )
 
+    # Save the verification result.
     check = save_document_analysis(
         db=db,
         agent_id=agent_id,
@@ -98,3 +107,4 @@ def run_document_verification(
         check_id=check.id,
         pipeline_result=pipeline_result,
     )
+
