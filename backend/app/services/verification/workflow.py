@@ -37,6 +37,7 @@ def run_document_verification(
     document_id: UUID,
     document_bytes: bytes,
     actor_user_id: UUID | None = None,
+    commit: bool = True,
 ) -> VerificationWorkflowResult:
     """
     Verify a document belonging to an agent.
@@ -101,6 +102,7 @@ def run_document_verification(
         agent_id=agent_id,
         result=pipeline_result.analysis,
         actor_user_id=actor_user_id,
+        commit=commit,
     )
 
     return VerificationWorkflowResult(

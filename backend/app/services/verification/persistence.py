@@ -33,11 +33,16 @@ class VerificationIntegrityError(ValueError):
 def _map_outcome_to_status(
     outcome: VerificationOutcome,
 ) -> CheckStatus:
+    """
+    Convert a document analysis outcome into
+    the corresponding database check status.
+    """
     mapping = {
         VerificationOutcome.PASS: CheckStatus.PASSED,
         VerificationOutcome.FAIL: CheckStatus.FAILED,
         VerificationOutcome.NEEDS_REVIEW: CheckStatus.NEEDS_REVIEW,
     }
+
     return mapping[outcome]
 
 
@@ -46,15 +51,27 @@ def save_document_analysis(
     agent_id: uuid.UUID,
     result: DocumentAnalysisResult,
     actor_user_id: uuid.UUID | None = None,
+    *,
+    commit: bool = True,
 ) -> VerificationCheck:
     """
-    Persist document analysis only when the document
-    belongs to the specified agent.
+    Persist a document analysis result.
 
-    This function is intended for trusted internal callers.
-    API-level authorization must be enforced separately.
+    SECURITY:
+    The document must belong to the specified agent.
+    API-level authorization is enforced separately.
+
+    TRANSACTION CONTROL:
+    commit=True:
+        Commit the document analysis and audit event.
+
+    commit=False:
+        Flush changes without committing, allowing
+        a higher-level orchestrator to manage the
+        transaction.
     """
     try:
+        # 1. Verify document ownership.
         document = db.execute(
             select(KYCDocument).where(
                 KYCDocument.id == result.document_id,
@@ -68,11 +85,13 @@ def save_document_analysis(
                 "or does not exist."
             )
 
+        # 2. Verify document type consistency.
         if document.document_type != result.document_type:
             raise VerificationIntegrityError(
                 "Document type does not match the stored record."
             )
 
+        # 3. Create the document verification record.
         check = VerificationCheck(
             agent_id=agent_id,
             check_type="document_analysis",
@@ -86,6 +105,7 @@ def save_document_analysis(
             },
         )
 
+        # 4. Create the corresponding audit record.
         audit = AuditLog(
             agent_id=agent_id,
             actor_user_id=actor_user_id,
@@ -96,11 +116,18 @@ def save_document_analysis(
             },
         )
 
+        # 5. Add both records to the transaction.
         db.add(check)
         db.add(audit)
-        db.commit()
-        db.refresh(check)
 
+        # 6. Commit or defer the transaction.
+        if commit:
+            db.commit()
+            db.refresh(check)
+        else:
+            db.flush()
+
+        # 7. Return the saved verification check.
         return check
 
     except VerificationIntegrityError:
@@ -118,13 +145,27 @@ def save_risk_assessment(
     db: Session,
     result: RiskAssessmentResult,
     actor_user_id: uuid.UUID | None = None,
+    *,
+    commit: bool = True,
 ) -> FraudAssessment:
     """
-    Persist a risk assessment only for an existing agent.
+    Persist a fraud-risk assessment.
 
-    This function is intended for trusted internal callers.
+    SECURITY:
+    The assessment must reference an existing agent.
+    API-level authorization is enforced separately.
+
+    TRANSACTION CONTROL:
+    commit=True:
+        Commit the fraud assessment and audit event.
+
+    commit=False:
+        Flush changes without committing, allowing
+        a higher-level orchestrator to manage the
+        transaction.
     """
     try:
+        # 1. Verify that the agent exists.
         agent = db.execute(
             select(Agent).where(
                 Agent.id == result.agent_id
@@ -136,6 +177,7 @@ def save_risk_assessment(
                 "Agent does not exist."
             )
 
+        # 2. Create the fraud assessment record.
         assessment = FraudAssessment(
             agent_id=result.agent_id,
             risk_score=result.risk_score,
@@ -143,6 +185,7 @@ def save_risk_assessment(
             model_version=result.model_version,
         )
 
+        # 3. Create the corresponding audit record.
         audit = AuditLog(
             agent_id=result.agent_id,
             actor_user_id=actor_user_id,
@@ -154,11 +197,18 @@ def save_risk_assessment(
             },
         )
 
+        # 4. Add both records to the transaction.
         db.add(assessment)
         db.add(audit)
-        db.commit()
-        db.refresh(assessment)
 
+        # 5. Commit or defer the transaction.
+        if commit:
+            db.commit()
+            db.refresh(assessment)
+        else:
+            db.flush()
+
+        # 6. Return the saved fraud assessment.
         return assessment
 
     except VerificationIntegrityError:

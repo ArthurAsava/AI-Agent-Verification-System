@@ -35,6 +35,7 @@ class DocumentInfo:
     status: str
     storage_path: str
     storage_bucket: str
+    sha256_checksum: str | None = None
 
 
 def _to_info(document: KYCDocument) -> DocumentInfo:
@@ -43,6 +44,7 @@ def _to_info(document: KYCDocument) -> DocumentInfo:
         if hasattr(document.status, "value")
         else str(document.status)
     )
+    sha256_checksum=document.sha256_checksum,
 
     return DocumentInfo(
         id=document.id,
@@ -54,6 +56,7 @@ def _to_info(document: KYCDocument) -> DocumentInfo:
         status=status_value,
         storage_path=document.storage_path,
         storage_bucket=document.storage_bucket,
+        sha256_checksum=document.sha256_checksum,
     )
 
 

@@ -7,6 +7,8 @@ from sqlalchemy import engine_from_config, pool
 from app.core.config import get_settings
 from app.core.database import Base
 import app.models  # Registers application tables
+from app.models.verification_case import VerificationCase
+from app.models.reviewer import Reviewer
 
 config = context.config
 
