@@ -16,7 +16,7 @@ RiskBand = Literal[
     "critical",
 ]
 
-SCORING_VERSION = "risk-rules-v1"
+SCORING_VERSION = "risk-rules-v2"
 
 
 @dataclass(frozen=True)

@@ -71,6 +71,6 @@ def test_optional_database_signals():
         )
     )
 
-    assert result.risk.score == 55
+    assert result.risk.score == 65
     assert result.risk.level == "high"
     assert result.requires_review is True

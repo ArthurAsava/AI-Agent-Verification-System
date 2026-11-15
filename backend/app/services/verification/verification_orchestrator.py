@@ -25,6 +25,10 @@ from app.services.verification.workflow import (
 from app.services.verification.risk_feature_adapter import (
     extract_risk_features_from_analysis,
 )
+from app.services.verification.fraud_signal_service import (
+    assessment_key_for,
+    collect_trusted_fraud_signal_evidence,
+)
 from app.services.verification.risk_contract_adapter import (
     to_risk_assessment_contract,
 )
@@ -106,15 +110,24 @@ def _run_verification_sync(
                 commit=False,
             )
 
-            features = extract_risk_features_from_analysis(
+            base_features = extract_risk_features_from_analysis(
                 workflow.pipeline_result
             )
+
+            evidence = collect_trusted_fraud_signal_evidence(
+                db=db,
+                agent_id=agent.id,
+                document_id=document.id,
+                current_check_id=workflow.check_id,
+            )
+            features = evidence.apply_to(base_features)
 
             risk = assess_risk(features)
 
             contract = to_risk_assessment_contract(
                 agent_id=agent.id,
                 result=risk,
+                indicator_evidence=evidence.indicator_evidence(),
             )
 
             assessment = save_risk_assessment(
@@ -122,6 +135,14 @@ def _run_verification_sync(
                 result=contract,
                 actor_user_id=user_id,
                 commit=False,
+                verification_case_id=case_id,
+                assessment_key=assessment_key_for(
+                    agent_id=agent.id,
+                    document_id=document.id,
+                    case_id=case_id,
+                    features=features,
+                    scoring_version=risk.risk.scoring_version,
+                ),
             )
 
             recommendation = build_recommendation(

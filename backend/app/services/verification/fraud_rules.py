@@ -86,7 +86,7 @@ def detect_fraud_indicators(
     if features.duplicate_document_confirmed:
         add(
             "DUPLICATE_DOCUMENT",
-            35,
+            45,
             "The same document checksum is associated "
             "with another agent.",
         )
@@ -97,6 +97,35 @@ def detect_fraud_indicators(
             20,
             "Relevant repeated verification failures "
             "were detected.",
+        )
+
+    if features.unusual_verification_frequency:
+        add(
+            "UNUSUAL_VERIFICATION_FREQUENCY",
+            20,
+            "Verification attempts exceeded the review "
+            "threshold within the configured time window.",
+        )
+
+    if features.provider_kyc_declined:
+        add(
+            "PROVIDER_KYC_DECLINED",
+            35,
+            "A trusted KYC provider reported a declined outcome.",
+        )
+
+    if features.provider_liveness_failed:
+        add(
+            "PROVIDER_LIVENESS_FAILURE",
+            30,
+            "A trusted KYC provider reported a failed liveness check.",
+        )
+
+    if features.provider_identity_check_failed:
+        add(
+            "PROVIDER_IDENTITY_CHECK_FAILURE",
+            30,
+            "A trusted KYC provider reported a failed identity check.",
         )
 
     return tuple(indicators)

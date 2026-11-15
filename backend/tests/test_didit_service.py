@@ -277,6 +277,12 @@ async def test_kyc_sync_persists_only_minimized_provider_evidence(monkeypatch):
         }
 
     monkeypatch.setattr(service, "_retrieve_didit_kyc_decision", fake_retrieve)
+    refresh_calls = []
+    monkeypatch.setattr(
+        service,
+        "refresh_fraud_assessment_after_provider_sync",
+        lambda **kwargs: refresh_calls.append(kwargs),
+    )
 
     result = await sync_didit_kyc_decision(
         db=db,
@@ -297,6 +303,7 @@ async def test_kyc_sync_persists_only_minimized_provider_evidence(monkeypatch):
     assert check.result_data["didit"]["result"]["result_text"] == (
         "Authoritative provider KYC decision synchronized."
     )
+    assert refresh_calls == [{"db": db, "agent_id": check.agent_id}]
     db.commit.assert_called_once()
 
 

@@ -11,13 +11,14 @@ from sqlalchemy.orm import Session
 from app.core.auth import CurrentUser, get_current_user
 from app.core.database import get_db
 
-from app.models.entities import Agent
+from app.models.entities import Agent, FraudAssessment
 from app.models.verification_case import VerificationCase
 
 from app.schemas.verification_api import (
     AgentVerificationResponse,
     ReviewQueueResponse,
     ReviewerCaseDetail,
+    ReviewerFraudAssessment,
     VerificationAnalysisResponse,
     VerificationCaseSummary,
     VerificationDecisionRequest,
@@ -100,6 +101,37 @@ def _authenticated_user_id(user: Any) -> UUID:
             status_code=401,
             detail="Invalid authenticated user ID.",
         )
+
+
+def _reviewer_case_detail(
+    db: Session,
+    case: VerificationCase,
+) -> ReviewerCaseDetail:
+    """Attach only stored, reviewer-safe fraud evidence to a case."""
+
+    detail = ReviewerCaseDetail.model_validate(case)
+    assessment = db.execute(
+        select(FraudAssessment)
+        .where(FraudAssessment.verification_case_id == case.id)
+        .order_by(FraudAssessment.created_at.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    if assessment is None:
+        return detail
+
+    return detail.model_copy(
+        update={
+            "fraud_assessment": ReviewerFraudAssessment(
+                id=assessment.id,
+                risk_score=float(assessment.risk_score),
+                risk_level=assessment.risk_level,
+                model_version=assessment.model_version,
+                requires_review=assessment.requires_review,
+                signals=assessment.signals,
+                created_at=assessment.created_at,
+            )
+        }
+    )
 
 
 # Agent verification status
@@ -235,7 +267,7 @@ def get_review_queue(
 
     return ReviewQueueResponse(
         cases=[
-            ReviewerCaseDetail.model_validate(case)
+            _reviewer_case_detail(db, case)
             for case in cases
         ]
     )
@@ -266,7 +298,7 @@ def get_verification_case(
             detail="Verification case not found.",
         )
 
-    return ReviewerCaseDetail.model_validate(case)
+    return _reviewer_case_detail(db, case)
 
 
 # ---------------------------------------------------------

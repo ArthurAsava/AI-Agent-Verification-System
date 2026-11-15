@@ -158,6 +158,32 @@ def test_save_risk_assessment():
     db.commit.assert_called_once()
 
 
+def test_reuses_existing_phase_ten_assessment_key():
+    db = MagicMock()
+    result = make_risk_result()
+    existing = SimpleNamespace(
+        id=uuid.uuid4(),
+        agent_id=result.agent_id,
+    )
+    agent_result = MagicMock()
+    agent_result.scalar_one_or_none.return_value = SimpleNamespace(
+        id=result.agent_id
+    )
+    existing_result = MagicMock()
+    existing_result.scalar_one_or_none.return_value = existing
+    db.execute.side_effect = [agent_result, existing_result]
+
+    assessment = save_risk_assessment(
+        db,
+        result,
+        assessment_key="x" * 64,
+    )
+
+    assert assessment is existing
+    db.add.assert_not_called()
+    db.commit.assert_not_called()
+
+
 def test_rejects_nonexistent_agent():
     db = MagicMock()
     mock_missing_record(db)

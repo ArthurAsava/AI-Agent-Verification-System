@@ -65,3 +65,15 @@ def test_fraud_score_has_range_constraint():
     }
 
     assert "risk_score_range" in constraints
+
+
+def test_fraud_assessments_store_reviewable_safe_evidence():
+    assessments = Base.metadata.tables["fraud_assessments"]
+
+    assert assessments.c.assessment_key.unique is True
+    assert assessments.c.signals.type.__class__.__name__ == "JSONB"
+    assert assessments.c.requires_review.nullable is False
+    assert "verification_cases.id" in {
+        foreign_key.target_fullname
+        for foreign_key in assessments.foreign_keys
+    }

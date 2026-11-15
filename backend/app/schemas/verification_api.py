@@ -7,6 +7,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.services.verification.contracts import FraudIndicator
+
 
 class VerificationAnalysisResponse(BaseModel):
     case_id: UUID
@@ -38,6 +40,19 @@ class ReviewerCaseDetail(VerificationCaseSummary):
     reviewer_user_id: UUID | None = None
     decision_reason: str | None = None
     reviewed_at: datetime | None = None
+    fraud_assessment: "ReviewerFraudAssessment | None" = None
+
+
+class ReviewerFraudAssessment(BaseModel):
+    """Reviewer-only, data-minimized explanation of a risk assessment."""
+
+    id: UUID
+    risk_score: float
+    risk_level: str
+    model_version: str
+    requires_review: bool
+    signals: list[FraudIndicator]
+    created_at: datetime
 
 
 class ReviewQueueResponse(BaseModel):

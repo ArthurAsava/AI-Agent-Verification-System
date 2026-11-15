@@ -149,6 +149,20 @@ def test_completed_analysis_moves_case_to_human_review(monkeypatch):
         "extract_risk_features_from_analysis",
         lambda _: object(),
     )
+    evidence = SimpleNamespace(
+        apply_to=lambda _: object(),
+        indicator_evidence=lambda: {},
+    )
+    monkeypatch.setattr(
+        module,
+        "collect_trusted_fraud_signal_evidence",
+        lambda **_: evidence,
+    )
+    monkeypatch.setattr(
+        module,
+        "assessment_key_for",
+        lambda **_: "a" * 64,
+    )
     monkeypatch.setattr(module, "assess_risk", lambda _: risk)
     monkeypatch.setattr(
         module,

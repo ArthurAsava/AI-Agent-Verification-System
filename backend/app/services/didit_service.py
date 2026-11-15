@@ -17,6 +17,9 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings, get_settings
 from app.models.entities import Agent, AuditLog, CheckStatus, VerificationCheck
 from app.services.kyc_upload_service import BIOMETRIC_DIDIT_CHECK_TYPE
+from app.services.verification.fraud_refresh_service import (
+    refresh_fraud_assessment_after_provider_sync,
+)
 
 
 DIDIT_PROVIDER = "didit"
@@ -535,6 +538,12 @@ async def sync_didit_kyc_decision(
                 "is_final": summary["is_final"],
             },
         )
+    )
+    # Re-score only a pending human-review case. The refresh receives the
+    # already-minimized provider summary and cannot make an approval decision.
+    refresh_fraud_assessment_after_provider_sync(
+        db=db,
+        agent_id=check.agent_id,
     )
     db.commit()
     return "synced"
