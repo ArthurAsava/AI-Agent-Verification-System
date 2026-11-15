@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import Column, Table
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     Enum,
@@ -242,6 +243,24 @@ class FraudAssessment(Base):
     )
     model_version: Mapped[str] = mapped_column(
         String(50), nullable=False
+    )
+    verification_case_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("verification_cases.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    assessment_key: Mapped[str] = mapped_column(
+        String(64), nullable=False, unique=True
+    )
+    signals: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB,
+        nullable=False,
+        server_default=text("'[]'::jsonb"),
+    )
+    requires_review: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("true"),
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

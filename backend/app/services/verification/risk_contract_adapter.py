@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from uuid import UUID
 
 from app.services.verification.contracts import (
@@ -17,6 +18,7 @@ def to_risk_assessment_contract(
     *,
     agent_id: UUID,
     result: RiskEngineResult,
+    indicator_evidence: Mapping[str, Mapping[str, int]] | None = None,
 ) -> RiskAssessmentResult:
 
     if not isinstance(result, RiskEngineResult):
@@ -26,7 +28,7 @@ def to_risk_assessment_contract(
         "low": RiskLevel.LOW,
         "medium": RiskLevel.MEDIUM,
         "high": RiskLevel.HIGH,
-        "critical": RiskLevel.HIGH,
+        "critical": RiskLevel.CRITICAL,
     }
 
     level = level_map.get(result.risk.level)
@@ -37,19 +39,23 @@ def to_risk_assessment_contract(
     indicators = []
 
     for indicator in result.indicators:
-        if indicator.weight >= 50:
+        if indicator.weight >= 40:
             severity = RiskLevel.HIGH
         elif indicator.weight >= 25:
             severity = RiskLevel.MEDIUM
         else:
             severity = RiskLevel.LOW
 
+        evidence = {"weight": indicator.weight}
+        if indicator_evidence and indicator.code in indicator_evidence:
+            evidence.update(indicator_evidence[indicator.code])
+
         indicators.append(
             FraudIndicator(
                 code=indicator.code,
                 description=indicator.explanation,
                 severity=severity,
-                evidence={"weight": indicator.weight},
+                evidence=evidence,
             )
         )
 
@@ -59,4 +65,5 @@ def to_risk_assessment_contract(
         risk_level=level,
         model_version=result.risk.scoring_version,
         indicators=indicators,
+        requires_review=result.requires_review,
     )

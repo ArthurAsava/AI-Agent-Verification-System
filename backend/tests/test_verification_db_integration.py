@@ -24,6 +24,7 @@ from app.models.entities import (
 )
 from app.services.verification.contracts import (
     DocumentAnalysisResult,
+    FraudIndicator,
     RiskAssessmentResult,
     RiskLevel,
     VerificationOutcome,
@@ -197,6 +198,61 @@ def test_live_risk_assessment_and_audit(db):
     ).scalars().first()
 
     assert audit is not None
+
+
+def test_live_phase_ten_evidence_is_idempotent_and_minimized(db):
+    agent = get_existing_agent(db)
+    result = RiskAssessmentResult(
+        agent_id=agent.id,
+        risk_score=45,
+        risk_level=RiskLevel.HIGH,
+        model_version="risk-rules-v2",
+        requires_review=True,
+        indicators=[
+            FraudIndicator(
+                code="DUPLICATE_DOCUMENT",
+                description=(
+                    "The same document checksum is associated with another agent."
+                ),
+                severity=RiskLevel.HIGH,
+                evidence={
+                    "weight": 45,
+                    "matched_other_agent_documents": 1,
+                },
+            )
+        ],
+    )
+    assessment_key = f"integration-{uuid.uuid4().hex}"
+
+    first = save_risk_assessment(
+        db=db,
+        result=result,
+        assessment_key=assessment_key,
+    )
+    repeated = save_risk_assessment(
+        db=db,
+        result=result,
+        assessment_key=assessment_key,
+    )
+
+    assert repeated.id == first.id
+    stored = db.get(FraudAssessment, first.id)
+    assert stored is not None
+    assert stored.assessment_key == assessment_key
+    assert stored.requires_review is True
+    assert stored.signals == [
+        {
+            "code": "DUPLICATE_DOCUMENT",
+            "description": (
+                "The same document checksum is associated with another agent."
+            ),
+            "severity": "high",
+            "evidence": {
+                "weight": 45,
+                "matched_other_agent_documents": 1,
+            },
+        }
+    ]
 
 
 def test_live_rejects_nonexistent_agent(db):

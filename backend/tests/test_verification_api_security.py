@@ -62,6 +62,8 @@ def test_invalid_case_id_is_rejected(client):
     assert response.status_code == 401
 
 
+from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 from app.core.auth import CurrentUser, get_current_user
@@ -161,5 +163,93 @@ def test_active_reviewer_can_access_review_queue():
 
         assert response.status_code == 200
         assert response.json() == {"cases": []}
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_reviewer_can_read_minimized_fraud_evidence_for_case():
+    reviewer_id = uuid4()
+    case_id = uuid4()
+    agent_id = uuid4()
+    document_id = uuid4()
+    now = datetime.now(timezone.utc)
+
+    def override_user():
+        return CurrentUser(
+            id=reviewer_id,
+            email="reviewer@example.test",
+        )
+
+    reviewer_result = Mock()
+    reviewer_result.scalar_one_or_none.return_value = SimpleNamespace(
+        user_id=reviewer_id,
+        is_active=True,
+    )
+    case_result = Mock()
+    case_result.scalar_one_or_none.return_value = SimpleNamespace(
+        id=case_id,
+        agent_id=agent_id,
+        document_id=document_id,
+        status="awaiting_review",
+        version=1,
+        created_at=now,
+        updated_at=now,
+        recommendation="escalate",
+        risk_score=80,
+        risk_level="critical",
+        scoring_version="risk-rules-v2",
+        reviewer_user_id=None,
+        decision_reason=None,
+        reviewed_at=None,
+    )
+    assessment_result = Mock()
+    assessment_result.scalar_one_or_none.return_value = SimpleNamespace(
+        id=uuid4(),
+        risk_score=80,
+        risk_level="critical",
+        model_version="risk-rules-v2",
+        requires_review=True,
+        signals=[
+            {
+                "code": "DUPLICATE_DOCUMENT",
+                "description": "The same document checksum is associated with another agent.",
+                "severity": "high",
+                "evidence": {"weight": 45, "matched_other_agent_documents": 1},
+            }
+        ],
+        created_at=now,
+    )
+
+    mock_db = Mock()
+    mock_db.execute.side_effect = [
+        reviewer_result,
+        case_result,
+        assessment_result,
+    ]
+
+    def override_db():
+        yield mock_db
+
+    app.dependency_overrides[get_current_user] = override_user
+    app.dependency_overrides[get_db] = override_db
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(f"/verification/cases/{case_id}")
+
+        assert response.status_code == 200
+        payload = response.json()["fraud_assessment"]
+        assert payload["risk_level"] == "critical"
+        assert payload["signals"] == [
+            {
+                "code": "DUPLICATE_DOCUMENT",
+                "description": "The same document checksum is associated with another agent.",
+                "severity": "high",
+                "evidence": {
+                    "weight": 45,
+                    "matched_other_agent_documents": 1,
+                },
+            }
+        ]
     finally:
         app.dependency_overrides.clear()

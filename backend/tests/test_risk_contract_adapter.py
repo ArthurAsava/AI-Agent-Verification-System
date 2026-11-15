@@ -29,7 +29,7 @@ def test_mismatch_assessment():
     assert result.indicators[0].code == "IDENTITY_MISMATCH"
 
 
-def test_critical_assessment_legacy_mapping():
+def test_critical_assessment_is_preserved():
     result = to_risk_assessment_contract(
         agent_id=uuid4(),
         result=assess_risk(
@@ -41,4 +41,4 @@ def test_critical_assessment_legacy_mapping():
         ),
     )
     assert result.risk_score == 80
-    assert result.risk_level == RiskLevel.HIGH
+    assert result.risk_level == RiskLevel.CRITICAL

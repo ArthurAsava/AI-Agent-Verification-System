@@ -14,6 +14,7 @@ from app.models.entities import (
     KYCDocument,
     VerificationCheck,
 )
+from app.models.verification_case import VerificationCase
 
 from app.services.verification.contracts import (
     DocumentAnalysisResult,
@@ -147,9 +148,11 @@ def save_risk_assessment(
     actor_user_id: uuid.UUID | None = None,
     *,
     commit: bool = True,
+    verification_case_id: uuid.UUID | None = None,
+    assessment_key: str | None = None,
 ) -> FraudAssessment:
     """
-    Persist a fraud-risk assessment.
+    Persist a data-minimized, explainable fraud-risk assessment.
 
     SECURITY:
     The assessment must reference an existing agent.
@@ -164,6 +167,19 @@ def save_risk_assessment(
         a higher-level orchestrator to manage the
         transaction.
     """
+    phase_ten_key_supplied = assessment_key is not None
+    if assessment_key is None:
+        # Compatibility for callers predating the Phase 10 idempotent
+        # pipeline. The Phase 10 orchestrator always supplies a stable key.
+        assessment_key = f"legacy-{uuid.uuid4().hex}"
+    if (
+        not isinstance(assessment_key, str)
+        or not 1 <= len(assessment_key) <= 64
+    ):
+        raise ValueError(
+            "Assessment key must be a non-empty value up to 64 characters."
+        )
+
     try:
         # 1. Verify that the agent exists.
         agent = db.execute(
@@ -177,12 +193,48 @@ def save_risk_assessment(
                 "Agent does not exist."
             )
 
-        # 2. Create the fraud assessment record.
+        if verification_case_id is not None:
+            case = db.execute(
+                select(VerificationCase).where(
+                    VerificationCase.id == verification_case_id,
+                    VerificationCase.agent_id == result.agent_id,
+                )
+            ).scalar_one_or_none()
+            if case is None:
+                raise VerificationIntegrityError(
+                    "Verification case does not belong to the agent "
+                    "or does not exist."
+                )
+
+        # A repeated request with exactly the same safe assessment inputs is
+        # intentionally a no-op. This avoids duplicate review evidence.
+        if phase_ten_key_supplied:
+            existing = db.execute(
+                select(FraudAssessment).where(
+                    FraudAssessment.assessment_key == assessment_key
+                )
+            ).scalar_one_or_none()
+            if existing is not None:
+                if existing.agent_id != result.agent_id:
+                    raise VerificationIntegrityError(
+                        "Assessment key belongs to another agent."
+                    )
+                return existing
+
+        # 2. Create the fraud assessment record. Indicator evidence is
+        # already data-minimized by the fraud signal service.
         assessment = FraudAssessment(
             agent_id=result.agent_id,
             risk_score=result.risk_score,
             risk_level=result.risk_level.value,
             model_version=result.model_version,
+            verification_case_id=verification_case_id,
+            assessment_key=assessment_key,
+            signals=[
+                indicator.model_dump(mode="json")
+                for indicator in result.indicators
+            ],
+            requires_review=result.requires_review,
         )
 
         # 3. Create the corresponding audit record.
@@ -194,6 +246,15 @@ def save_risk_assessment(
                 "risk_level": result.risk_level.value,
                 "model_version": result.model_version,
                 "indicator_count": len(result.indicators),
+                "indicator_codes": [
+                    indicator.code for indicator in result.indicators
+                ],
+                "verification_case_id": (
+                    str(verification_case_id)
+                    if verification_case_id is not None
+                    else None
+                ),
+                "requires_review": result.requires_review,
             },
         )
 

@@ -16,6 +16,7 @@ class RiskLevel(str, Enum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
+    CRITICAL = "critical"
 
 
 class FraudIndicator(BaseModel):
@@ -46,3 +47,4 @@ class RiskAssessmentResult(BaseModel):
     risk_level: RiskLevel
     model_version: str = Field(min_length=1, max_length=50)
     indicators: list[FraudIndicator] = Field(default_factory=list)
+    requires_review: bool = True

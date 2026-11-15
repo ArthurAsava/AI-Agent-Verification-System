@@ -47,6 +47,10 @@ def assess_risk(
         or features.conflicting_identity_fields
         or features.duplicate_document_confirmed
         or features.repeated_failures_confirmed
+        or features.unusual_verification_frequency
+        or features.provider_kyc_declined
+        or features.provider_liveness_failed
+        or features.provider_identity_check_failed
     )
 
     return RiskEngineResult(
