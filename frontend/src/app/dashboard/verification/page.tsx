@@ -9,6 +9,10 @@ import { createClient } from "@/lib/supabase/client";
 import {
   getAgentVerification,
 } from "@/lib/verification/api";
+import {
+  getDiditKycStatus,
+  type DiditKycStatus,
+} from "@/lib/kyc-api";
 
 import {
   STATUS_INFORMATION,
@@ -32,6 +36,8 @@ function formatDate(value: string): string {
 
 export default function AgentVerificationPage() {
   const [cases, setCases] = useState<VerificationCase[]>([]);
+  const [diditKycStatus, setDiditKycStatus] =
+    useState<DiditKycStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,13 +60,14 @@ export default function AgentVerificationPage() {
           );
         }
 
-        const result = await getAgentVerification(
-          session.access_token,
-          signal,
-        );
+        const [result, diditStatus] = await Promise.all([
+          getAgentVerification(session.access_token, signal),
+          getDiditKycStatus(),
+        ]);
 
         if (!signal?.aborted) {
           setCases(result.cases);
+          setDiditKycStatus(diditStatus);
         }
       } catch (err) {
         if (signal?.aborted) return;
@@ -194,6 +201,44 @@ export default function AgentVerificationPage() {
                       </p>
                     </div>
                   </div>
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold">
+                Hosted KYC Verification
+              </h2>
+
+              {!diditKycStatus ? (
+                <p className="mt-3 text-sm text-slate-600">
+                  No hosted KYC verification has been started yet.
+                </p>
+              ) : (
+                <div className="mt-4 space-y-3 text-sm">
+                  <p className="text-slate-700">
+                    Provider result: {diditKycStatus.provider_status ?? "Awaiting provider update"}
+                    {diditKycStatus.is_final === true
+                      ? " (final provider update)"
+                      : ""}
+                  </p>
+                  <p className="text-slate-600">
+                    SalesMesh review state: {diditKycStatus.check_status.replaceAll("_", " ")}. A provider result does not automatically approve your account.
+                  </p>
+                  {Object.keys(diditKycStatus.actions).length > 0 && (
+                    <ul className="list-disc space-y-1 pl-5 text-slate-600">
+                      {Object.entries(diditKycStatus.actions).map(([name, value]) => (
+                        <li key={name}>
+                          {name.replaceAll("_", " ")}: {value}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {diditKycStatus.synced_at && (
+                    <p className="text-xs text-slate-500">
+                      Last synchronized: {formatDate(diditKycStatus.synced_at)}
+                    </p>
+                  )}
                 </div>
               )}
             </section>

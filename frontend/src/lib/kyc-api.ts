@@ -160,6 +160,19 @@ export interface DiditSession {
   status: string;
 }
 
+export interface DiditKycStatus {
+  check_id: string;
+  check_status: string;
+  provider_status: string | null;
+  is_final: boolean | null;
+  actions: Record<string, string>;
+  synced_at: string | null;
+}
+
+interface DiditKycStatusResponse {
+  check: DiditKycStatus | null;
+}
+
 export async function startDiditSession(): Promise<DiditSession> {
   const response = await authenticatedRequest(
     "/api/v1/biometric/didit/sessions",
@@ -171,6 +184,15 @@ export async function startDiditSession(): Promise<DiditSession> {
   );
 
   return response.json() as Promise<DiditSession>;
+}
+
+export async function getDiditKycStatus(): Promise<DiditKycStatus | null> {
+  const response = await authenticatedRequest(
+    "/api/v1/biometric/didit/status",
+  );
+
+  const body = await response.json() as DiditKycStatusResponse;
+  return body.check;
 }
 
 export async function downloadKycDocument(

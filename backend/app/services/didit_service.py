@@ -8,7 +8,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 import httpx
 from sqlalchemy import select
@@ -22,11 +22,19 @@ from app.services.kyc_upload_service import BIOMETRIC_DIDIT_CHECK_TYPE
 DIDIT_PROVIDER = "didit"
 DIDIT_HOSTED_WORKFLOW_MODE = "hosted_workflow"
 DIDIT_SESSION_URL = "https://verification.didit.me/v3/session/"
-_FINAL_SESSION_STATUSES = frozenset({"approved", "declined", "abandoned"})
+_FINAL_SESSION_STATUSES = frozenset({
+    "approved",
+    "declined",
+    "abandoned",
+    "expired",
+    "kyc expired",
+    "in review",
+})
 _FEATURE_FIELDS = {
     "id_verifications": "id_verification",
     "liveness_checks": "liveness",
     "face_matches": "face_match",
+    "ip_analyses": "ip_analysis",
 }
 
 
@@ -58,6 +66,10 @@ class DiditWebhookError(DiditError):
     pass
 
 
+class DiditDecisionRetrievalError(DiditError):
+    """Raised when an authoritative KYC decision cannot be retrieved safely."""
+
+
 @dataclass(frozen=True)
 class DiditConfig:
     api_key: str
@@ -74,6 +86,18 @@ class DiditSession:
     session_id: str
     verification_url: str
     status: str
+
+
+@dataclass(frozen=True)
+class DiditKycStatus:
+    """Agent-safe, minimized KYC state exposed by SalesMesh."""
+
+    check_id: uuid.UUID
+    check_status: str
+    provider_status: str | None
+    is_final: bool | None
+    actions: dict[str, str]
+    synced_at: datetime | None
 
 
 def _secret_value(value) -> str:
@@ -383,6 +407,212 @@ def _feature_statuses(payload: dict[str, Any]) -> dict[str, str]:
     return summaries
 
 
+def _find_didit_check(
+    *,
+    db: Session,
+    session_id: str,
+) -> VerificationCheck:
+    check = db.execute(
+        select(VerificationCheck).where(
+            VerificationCheck.check_type == BIOMETRIC_DIDIT_CHECK_TYPE,
+            VerificationCheck.result_data[DIDIT_PROVIDER]["session_id"].astext
+            == session_id,
+        )
+    ).scalar_one_or_none()
+    if check is None:
+        raise DiditNotFoundError("Didit webhook session was not found.")
+    return check
+
+
+def _minimize_kyc_decision(
+    *,
+    decision: Any,
+    config: DiditConfig,
+    session_id: str,
+) -> dict[str, Any]:
+    """Keep provider status evidence, never the provider's identity payload."""
+
+    if not isinstance(decision, dict):
+        raise DiditDecisionRetrievalError("Didit returned an invalid decision.")
+    if decision.get("session_id") != session_id:
+        raise DiditDecisionRetrievalError("Didit decision session does not match.")
+    if decision.get("environment") != config.environment:
+        raise DiditDecisionRetrievalError("Didit decision environment does not match.")
+    if decision.get("session_kind") != "user":
+        raise DiditDecisionRetrievalError("Didit decision is not a KYC user session.")
+
+    status = decision.get("status")
+    if not isinstance(status, str) or not status or len(status) > 50:
+        raise DiditDecisionRetrievalError("Didit decision status is invalid.")
+
+    actions = _feature_statuses({"decision": decision})
+    return {
+        "source": "session_decision",
+        "session_kind": "user",
+        "status": status,
+        "is_final": status.lower() in _FINAL_SESSION_STATUSES,
+        "actions": actions,
+        "synced_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+async def _retrieve_didit_kyc_decision(
+    *,
+    config: DiditConfig,
+    session_id: str,
+) -> dict[str, Any]:
+    url = f"{DIDIT_SESSION_URL}{quote(session_id, safe='')}/decision/"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                url,
+                headers={
+                    "x-api-key": config.api_key,
+                    "Accept": "application/json",
+                },
+            )
+            response.raise_for_status()
+            decision = response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise DiditDecisionRetrievalError(
+            "Didit KYC decision could not be retrieved."
+        ) from exc
+
+    return _minimize_kyc_decision(
+        decision=decision,
+        config=config,
+        session_id=session_id,
+    )
+
+
+async def sync_didit_kyc_decision(
+    *,
+    db: Session,
+    session_id: str,
+    event_id: str,
+) -> str:
+    """Retrieve and persist an authoritative, data-minimized KYC outcome.
+
+    This runs only after webhook signature validation. It does not change the
+    SalesMesh check or agent decision state; a human reviewer remains required.
+    """
+
+    if not isinstance(event_id, str) or not event_id or len(event_id) > 100:
+        raise DiditDecisionRetrievalError("Didit event ID is invalid.")
+
+    config = get_didit_config()
+    check = _find_didit_check(db=db, session_id=session_id)
+    didit_data = _didit_result_data(check)
+    if didit_data.get("kyc_decision_event_id") == event_id:
+        return "already_synced"
+
+    summary = await _retrieve_didit_kyc_decision(
+        config=config,
+        session_id=session_id,
+    )
+    didit_data.update({
+        "kyc": summary,
+        "kyc_decision_event_id": event_id,
+        "result": {
+            "result_code": summary["status"],
+            "result_text": "Authoritative provider KYC decision synchronized.",
+            "is_final": summary["is_final"],
+            "actions": summary["actions"],
+        },
+    })
+    _set_didit_result_data(check, didit_data)
+    db.add(
+        AuditLog(
+            agent_id=check.agent_id,
+            actor_user_id=None,
+            action="didit_kyc_decision_synced",
+            details={
+                "check_id": str(check.id),
+                "provider": DIDIT_PROVIDER,
+                "session_id": session_id,
+                "event_id": event_id,
+                "kyc_status": summary["status"],
+                "is_final": summary["is_final"],
+            },
+        )
+    )
+    db.commit()
+    return "synced"
+
+
+def _parse_synced_at(value: Any) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def get_didit_kyc_status(
+    *,
+    db: Session,
+    user_id: uuid.UUID,
+) -> DiditKycStatus | None:
+    """Return only the current agent's minimized provider summary."""
+
+    agent = db.execute(
+        select(Agent).where(Agent.user_id == user_id)
+    ).scalar_one_or_none()
+    if agent is None:
+        raise DiditNotFoundError("Agent profile not found.")
+
+    check = db.execute(
+        select(VerificationCheck)
+        .where(
+            VerificationCheck.agent_id == agent.id,
+            VerificationCheck.check_type == BIOMETRIC_DIDIT_CHECK_TYPE,
+        )
+        .order_by(VerificationCheck.created_at.desc())
+    ).scalars().first()
+    if check is None:
+        return None
+
+    didit_data = _didit_result_data(check)
+    kyc = didit_data.get("kyc")
+    kyc = kyc if isinstance(kyc, dict) else {}
+    result = didit_data.get("result")
+    result = result if isinstance(result, dict) else {}
+    raw_actions = kyc.get("actions", result.get("actions", {}))
+    raw_actions = raw_actions if isinstance(raw_actions, dict) else {}
+    actions = {
+        str(name)[:100]: str(value)[:100]
+        for name, value in raw_actions.items()
+        if isinstance(name, str)
+        and isinstance(value, str)
+    }
+    provider_status = kyc.get("status", result.get("result_code"))
+    return DiditKycStatus(
+        check_id=check.id,
+        check_status=(
+            check.status.value
+            if isinstance(check.status, CheckStatus)
+            else str(check.status)
+        ),
+        provider_status=(
+            str(provider_status)[:50]
+            if isinstance(provider_status, str)
+            else None
+        ),
+        is_final=(
+            kyc["is_final"]
+            if isinstance(kyc.get("is_final"), bool)
+            else (
+                result["is_final"]
+                if isinstance(result.get("is_final"), bool)
+                else None
+            )
+        ),
+        actions=actions,
+        synced_at=_parse_synced_at(kyc.get("synced_at")),
+    )
+
+
 def record_didit_webhook(
     *,
     db: Session,
@@ -424,15 +654,7 @@ def record_didit_webhook(
     if len(session_id) > 100 or len(event_id) > 100 or len(status) > 50:
         raise DiditWebhookError("Didit webhook session fields are invalid.")
 
-    check = db.execute(
-        select(VerificationCheck).where(
-            VerificationCheck.check_type == BIOMETRIC_DIDIT_CHECK_TYPE,
-            VerificationCheck.result_data[DIDIT_PROVIDER]["session_id"].astext
-            == session_id,
-        )
-    ).scalar_one_or_none()
-    if check is None:
-        raise DiditNotFoundError("Didit webhook session was not found.")
+    check = _find_didit_check(db=db, session_id=session_id)
 
     didit_data = _didit_result_data(check)
     if didit_data.get("callback_event_id") == event_id:
