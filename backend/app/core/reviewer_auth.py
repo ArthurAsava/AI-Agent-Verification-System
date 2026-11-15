@@ -30,3 +30,26 @@ def require_reviewer(
         )
 
     return user.id
+
+
+def require_admin(
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> uuid.UUID:
+    """Require an active, server-managed verification administrator."""
+
+    administrator = db.execute(
+        select(Reviewer).where(
+            Reviewer.user_id == user.id,
+            Reviewer.is_active.is_(True),
+            Reviewer.is_admin.is_(True),
+        )
+    ).scalar_one_or_none()
+
+    if administrator is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Active administrator permission required.",
+        )
+
+    return user.id

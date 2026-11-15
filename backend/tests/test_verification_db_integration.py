@@ -22,6 +22,7 @@ from app.models.entities import (
     KYCDocument,
     VerificationCheck,
 )
+from app.models.reviewer import Reviewer
 from app.services.verification.contracts import (
     DocumentAnalysisResult,
     FraudIndicator,
@@ -33,6 +34,9 @@ from app.services.verification.persistence import (
     VerificationIntegrityError,
     save_document_analysis,
     save_risk_assessment,
+)
+from app.services.verification.admin_service import (
+    get_admin_dashboard_summary,
 )
 
 
@@ -268,3 +272,20 @@ def test_live_rejects_nonexistent_agent(db):
             db=db,
             result=result,
         )
+
+
+def test_live_administration_summary_and_active_admin(db):
+    summary = get_admin_dashboard_summary(db)
+    active_admin = db.execute(
+        select(Reviewer).where(
+            Reviewer.is_active.is_(True),
+            Reviewer.is_admin.is_(True),
+        )
+    ).scalars().first()
+
+    assert active_admin is not None
+    assert summary.awaiting_review_cases >= 0
+    assert summary.elevated_risk_cases >= 0
+    assert summary.new_cases_last_24_hours >= 0
+    assert summary.agents_under_review >= 0
+    assert summary.active_reviewers >= 1

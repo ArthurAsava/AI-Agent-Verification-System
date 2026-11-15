@@ -45,7 +45,13 @@ system developed for the SalesMesh platform.
 
 ## Current Progress
 
-Phase 2 - Initial project setup.
+Phase 11 - Verification administration dashboard complete.
+
+The verification subsystem now includes document and provider evidence,
+explainable fraud signals, human review queues, server-enforced reviewer and
+administrator access, and an aggregate administration dashboard. See the
+phase completion notes in `docs/` for the operational boundaries and release
+checks.
 
 ## Security
 

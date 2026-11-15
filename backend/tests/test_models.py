@@ -77,3 +77,10 @@ def test_fraud_assessments_store_reviewable_safe_evidence():
         foreign_key.target_fullname
         for foreign_key in assessments.foreign_keys
     }
+
+
+def test_reviewer_model_has_separate_administrator_capability():
+    reviewers = Base.metadata.tables["verification_reviewers"]
+
+    assert reviewers.c.is_active.nullable is False
+    assert reviewers.c.is_admin.nullable is False

@@ -82,3 +82,29 @@ class VerificationDecisionResponse(BaseModel):
     new_status: str
     version: int
     reviewed_at: datetime
+
+
+class AdminDashboardSummaryResponse(BaseModel):
+    awaiting_review_cases: int = Field(ge=0)
+    elevated_risk_cases: int = Field(ge=0)
+    new_cases_last_24_hours: int = Field(ge=0)
+    agents_under_review: int = Field(ge=0)
+    active_reviewers: int = Field(ge=0)
+
+
+class ReviewerAccessEntry(BaseModel):
+    user_id: UUID
+    is_active: bool
+    is_admin: bool
+    created_at: datetime
+
+
+class ReviewerAccessListResponse(BaseModel):
+    reviewers: list[ReviewerAccessEntry]
+
+
+class ReviewerAccessUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    is_active: bool
+    is_admin: bool

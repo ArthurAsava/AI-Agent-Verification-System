@@ -5,7 +5,11 @@ import type {
   BiometricReviewDecisionRequest,
   BiometricReviewDecisionResponse,
   BiometricReviewQueueResponse,
+  AdminDashboardSummary,
   ReviewQueueResponse,
+  ReviewerAccessEntry,
+  ReviewerAccessListResponse,
+  ReviewerAccessUpdateRequest,
   ReviewerCase,
   VerificationDecisionRequest,
   VerificationDecisionResponse,
@@ -113,6 +117,37 @@ export function getReviewerCase(
   return reviewerRequest<ReviewerCase>(
     `/cases/${encodeURIComponent(caseId)}`,
     { signal },
+  );
+}
+
+export function getAdminDashboardSummary(
+  signal?: AbortSignal,
+): Promise<AdminDashboardSummary> {
+  return reviewerRequest<AdminDashboardSummary>(
+    "/admin/summary",
+    { signal },
+  );
+}
+
+export function getReviewerAccess(
+  signal?: AbortSignal,
+): Promise<ReviewerAccessListResponse> {
+  return reviewerRequest<ReviewerAccessListResponse>(
+    "/admin/reviewers",
+    { signal },
+  );
+}
+
+export function updateReviewerAccess(
+  userId: string,
+  payload: ReviewerAccessUpdateRequest,
+): Promise<ReviewerAccessEntry> {
+  return reviewerRequest<ReviewerAccessEntry>(
+    `/admin/reviewers/${encodeURIComponent(userId)}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    },
   );
 }
 
