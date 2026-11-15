@@ -62,6 +62,12 @@ def test_invalid_case_id_is_rejected(client):
     assert response.status_code == 401
 
 
+def test_admin_summary_requires_auth(client):
+    response = client.get("/verification/admin/summary")
+
+    assert response.status_code == 401
+
+
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -133,6 +139,33 @@ def test_regular_agent_cannot_submit_decision():
         app.dependency_overrides.clear()
 
 
+def test_active_reviewer_cannot_access_administration():
+    user_id = uuid4()
+
+    def override_user():
+        return CurrentUser(
+            id=user_id,
+            email="reviewer@example.test",
+        )
+
+    mock_db = Mock()
+    mock_db.execute.return_value.scalar_one_or_none.return_value = None
+
+    def override_db():
+        yield mock_db
+
+    app.dependency_overrides[get_current_user] = override_user
+    app.dependency_overrides[get_db] = override_db
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/verification/admin/summary")
+
+        assert response.status_code == 403
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_active_reviewer_can_access_review_queue():
     user_id = uuid4()
 
@@ -163,6 +196,51 @@ def test_active_reviewer_can_access_review_queue():
 
         assert response.status_code == 200
         assert response.json() == {"cases": []}
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_active_administrator_can_read_dashboard_summary():
+    user_id = uuid4()
+
+    def override_user():
+        return CurrentUser(
+            id=user_id,
+            email="admin@example.test",
+        )
+
+    administrator_result = Mock()
+    administrator_result.scalar_one_or_none.return_value = SimpleNamespace(
+        user_id=user_id,
+        is_active=True,
+        is_admin=True,
+    )
+    counts = []
+    for value in (3, 2, 4, 5, 6):
+        count_result = Mock()
+        count_result.scalar_one.return_value = value
+        counts.append(count_result)
+    mock_db = Mock()
+    mock_db.execute.side_effect = [administrator_result, *counts]
+
+    def override_db():
+        yield mock_db
+
+    app.dependency_overrides[get_current_user] = override_user
+    app.dependency_overrides[get_db] = override_db
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/verification/admin/summary")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "awaiting_review_cases": 3,
+            "elevated_risk_cases": 2,
+            "new_cases_last_24_hours": 4,
+            "agents_under_review": 5,
+            "active_reviewers": 6,
+        }
     finally:
         app.dependency_overrides.clear()
 

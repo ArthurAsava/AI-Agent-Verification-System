@@ -16,7 +16,11 @@ from app.models.verification_case import VerificationCase
 
 from app.schemas.verification_api import (
     AgentVerificationResponse,
+    AdminDashboardSummaryResponse,
     ReviewQueueResponse,
+    ReviewerAccessEntry,
+    ReviewerAccessListResponse,
+    ReviewerAccessUpdateRequest,
     ReviewerCaseDetail,
     ReviewerFraudAssessment,
     VerificationAnalysisResponse,
@@ -33,7 +37,7 @@ from app.services.verification.reviewer_service import (
     VerificationDecisionValidationError,
     VerificationDecisionPersistenceError,
 )
-from app.core.reviewer_auth import require_reviewer
+from app.core.reviewer_auth import require_admin, require_reviewer
 from app.services.kyc_retrieval_service import (
     DocumentNotFoundError,
     DocumentRetrievalError,
@@ -59,6 +63,14 @@ from app.services.verification.persistence import (
 from app.services.verification.submission_service import (
     VerificationDocumentNotFoundError,
     submit_document_for_verification,
+)
+from app.services.verification.admin_service import (
+    ReviewerAccessValidationError,
+    ReviewerAccountNotFoundError,
+    VerificationAdministrationError,
+    get_admin_dashboard_summary,
+    list_reviewer_access,
+    update_reviewer_access,
 )
 
 router = APIRouter(
@@ -363,3 +375,82 @@ def decide_verification_case(
             status_code=500,
             detail="Could not save verification decision.",
         )
+
+
+# ---------------------------------------------------------
+# Administrator dashboard and staff access management
+# ---------------------------------------------------------
+
+@router.get(
+    "/admin/summary",
+    response_model=AdminDashboardSummaryResponse,
+)
+def get_administrator_summary(
+    db: Session = Depends(get_db),
+    administrator_id: UUID = Depends(require_admin),
+):
+    summary = get_admin_dashboard_summary(db)
+    return AdminDashboardSummaryResponse(
+        awaiting_review_cases=summary.awaiting_review_cases,
+        elevated_risk_cases=summary.elevated_risk_cases,
+        new_cases_last_24_hours=summary.new_cases_last_24_hours,
+        agents_under_review=summary.agents_under_review,
+        active_reviewers=summary.active_reviewers,
+    )
+
+
+@router.get(
+    "/admin/reviewers",
+    response_model=ReviewerAccessListResponse,
+)
+def get_administrator_reviewers(
+    db: Session = Depends(get_db),
+    administrator_id: UUID = Depends(require_admin),
+):
+    reviewers = list_reviewer_access(db)
+    return ReviewerAccessListResponse(
+        reviewers=[
+            ReviewerAccessEntry(
+                user_id=reviewer.user_id,
+                is_active=reviewer.is_active,
+                is_admin=reviewer.is_admin,
+                created_at=reviewer.created_at,
+            )
+            for reviewer in reviewers
+        ]
+    )
+
+
+@router.put(
+    "/admin/reviewers/{user_id}",
+    response_model=ReviewerAccessEntry,
+)
+def put_administrator_reviewer(
+    user_id: UUID,
+    payload: ReviewerAccessUpdateRequest,
+    db: Session = Depends(get_db),
+    administrator_id: UUID = Depends(require_admin),
+):
+    try:
+        reviewer = update_reviewer_access(
+            db=db,
+            administrator_user_id=administrator_id,
+            target_user_id=user_id,
+            is_active=payload.is_active,
+            is_admin=payload.is_admin,
+        )
+        return ReviewerAccessEntry(
+            user_id=reviewer.user_id,
+            is_active=reviewer.is_active,
+            is_admin=reviewer.is_admin,
+            created_at=reviewer.created_at,
+        )
+    except ReviewerAccountNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ReviewerAccessValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except VerificationAdministrationError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Reviewer access could not be updated.",
+        ) from exc

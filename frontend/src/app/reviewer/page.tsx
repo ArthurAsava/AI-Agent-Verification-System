@@ -53,6 +53,12 @@ export default function ReviewerDashboard() {
 
           <div className="flex gap-3">
             <Link
+              href="/admin"
+              className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 font-medium text-slate-800"
+            >
+              Administration
+            </Link>
+            <Link
               href="/reviewer/biometrics"
               className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 font-medium text-slate-800"
             >

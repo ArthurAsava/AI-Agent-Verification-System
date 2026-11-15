@@ -14,6 +14,24 @@ export interface ReviewerCase extends VerificationCase {
   reviewer_user_id: string | null;
   decision_reason: string | null;
   reviewed_at: string | null;
+  fraud_assessment: ReviewerFraudAssessment | null;
+}
+
+export interface FraudSignal {
+  code: string;
+  description: string;
+  severity: "low" | "medium" | "high" | "critical";
+  evidence: Record<string, string | number | boolean>;
+}
+
+export interface ReviewerFraudAssessment {
+  id: string;
+  risk_score: number;
+  risk_level: "low" | "medium" | "high" | "critical";
+  model_version: string;
+  requires_review: boolean;
+  signals: FraudSignal[];
+  created_at: string;
 }
 
 export interface ReviewQueueResponse {
@@ -32,6 +50,30 @@ export interface VerificationDecisionResponse {
   new_status: string;
   version: number;
   reviewed_at: string;
+}
+
+export interface AdminDashboardSummary {
+  awaiting_review_cases: number;
+  elevated_risk_cases: number;
+  new_cases_last_24_hours: number;
+  agents_under_review: number;
+  active_reviewers: number;
+}
+
+export interface ReviewerAccessEntry {
+  user_id: string;
+  is_active: boolean;
+  is_admin: boolean;
+  created_at: string;
+}
+
+export interface ReviewerAccessListResponse {
+  reviewers: ReviewerAccessEntry[];
+}
+
+export interface ReviewerAccessUpdateRequest {
+  is_active: boolean;
+  is_admin: boolean;
 }
 
 export interface ReviewerDocumentSummary {

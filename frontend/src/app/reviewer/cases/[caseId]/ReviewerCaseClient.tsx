@@ -235,6 +235,62 @@ export default function ReviewerCaseClient({
               </section>
             )}
 
+            {reviewCase.fraud_assessment && (
+              <section className="rounded-xl border border-amber-200 bg-amber-50 p-6">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-semibold text-amber-950">
+                      Fraud-Signal Assessment
+                    </h2>
+                    <p className="mt-1 text-sm text-amber-900">
+                      {reviewCase.fraud_assessment.model_version} · risk score {reviewCase.fraud_assessment.risk_score} · {reviewCase.fraud_assessment.risk_level}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-amber-200 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-950">
+                    Human review required
+                  </span>
+                </div>
+
+                {reviewCase.fraud_assessment.signals.length === 0 ? (
+                  <p className="mt-4 text-sm text-amber-900">
+                    No fraud signals were recorded for this assessment.
+                  </p>
+                ) : (
+                  <ul className="mt-5 space-y-3">
+                    {reviewCase.fraud_assessment.signals.map((signal) => (
+                      <li
+                        key={signal.code}
+                        className="rounded-lg border border-amber-200 bg-white p-4"
+                      >
+                        <p className="font-semibold text-slate-900">
+                          {signal.code.replaceAll("_", " ")}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-700">
+                          {signal.description}
+                        </p>
+                        {Object.keys(signal.evidence).length > 0 && (
+                          <dl className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-600">
+                            {Object.entries(signal.evidence).map(([key, value]) => (
+                              <div key={key}>
+                                <dt className="inline font-medium capitalize">
+                                  {key.replaceAll("_", " ")}:
+                                </dt>{" "}
+                                <dd className="inline">{String(value)}</dd>
+                              </div>
+                            ))}
+                          </dl>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <p className="mt-5 text-xs text-amber-950">
+                  These signals are review evidence, not proof of fraud or an automated decision.
+                </p>
+              </section>
+            )}
+
             {reviewCase.status === "awaiting_review" && (
               <form
                 onSubmit={(event) =>
