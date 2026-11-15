@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.entities import Agent, AuditLog
+from app.models.entities import Agent, AgentStatus, AuditLog
 from app.models.verification_case import VerificationCase
 
 from app.services.verification.decision_contracts import (
@@ -63,6 +63,12 @@ ACTION_TO_STATUS = {
     ReviewerAction.REQUEST_RESUBMISSION: (
         CaseStatus.RESUBMISSION_REQUIRED
     ),
+}
+
+ACTION_TO_AGENT_STATUS = {
+    ReviewerAction.APPROVE: AgentStatus.APPROVED,
+    ReviewerAction.REJECT: AgentStatus.REJECTED,
+    ReviewerAction.REQUEST_RESUBMISSION: AgentStatus.PENDING,
 }
 
 
@@ -176,6 +182,11 @@ def record_verification_decision(
         case.reviewed_at = now
         case.updated_at = now
         case.version += 1
+
+        # The agent's access state follows the human decision, never the
+        # automated recommendation. Protected SalesMesh features can rely on
+        # this server-controlled status.
+        agent.status = ACTION_TO_AGENT_STATUS[normalized_action]
 
         audit = AuditLog(
             agent_id=case.agent_id,

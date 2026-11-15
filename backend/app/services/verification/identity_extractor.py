@@ -12,7 +12,16 @@ EXTRACTOR_VERSION = "identity-extractor-v1"
 
 SUPPORTED_DOCUMENT_TYPES = {
     "national_id",
+    "national_id_front",
     "passport",
+}
+
+# Storage uses a more specific document type than the extractor's Kenyan
+# national-ID rules. Preserve the stored value in all results so persistence
+# can verify the document record, while reusing the national-ID extraction
+# rules for the front image.
+DOCUMENT_TYPE_ALIASES = {
+    "national_id_front": "national_id",
 }
 
 ID_LABELS = (
@@ -201,6 +210,11 @@ def extract_identity_fields(
             f"Unsupported document type: {document_type}"
         )
 
+    extraction_document_type = DOCUMENT_TYPE_ALIASES.get(
+        document_type,
+        document_type,
+    )
+
     text = _normalize_text(ocr_result.text)
 
     if not text:
@@ -210,7 +224,7 @@ def extract_identity_fields(
 
     id_number = _extract_id_number(
         text,
-        document_type,
+        extraction_document_type,
     )
 
     full_name = _extract_full_name(text)

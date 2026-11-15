@@ -8,7 +8,8 @@ from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 
 from app.core.database import SessionLocal
-from app.models.entities import Agent, KYCDocument
+from app.models.entities import Agent, AgentStatus, KYCDocument
+from app.models.verification_case import VerificationCase, utc_now
 
 from app.services.kyc_retrieval_service import (
     download_agent_document,
@@ -31,6 +32,7 @@ from app.services.verification.risk_engine import assess_risk
 from app.services.verification.recommendation import (
     build_recommendation,
 )
+from app.services.verification.decision_contracts import CaseStatus
 from app.services.verification.persistence import (
     VerificationIntegrityError,
     save_risk_assessment,
@@ -47,6 +49,7 @@ class CompleteVerificationResult:
     risk_level: str
     recommendation: str
     indicator_codes: tuple[str, ...]
+    case_id: UUID | None = None
 
 
 def _run_verification_sync(
@@ -57,6 +60,7 @@ def _run_verification_sync(
     expected_storage_path: str,
     expected_storage_bucket: str,
     expected_checksum: str,
+    case_id: UUID | None = None,
 ) -> CompleteVerificationResult:
 
     with SessionLocal() as db:
@@ -128,6 +132,38 @@ def _run_verification_sync(
                 ),
             )
 
+            if case_id is not None:
+                case = db.execute(
+                    select(VerificationCase)
+                    .where(
+                        VerificationCase.id == case_id,
+                        VerificationCase.agent_id == agent.id,
+                    )
+                    .with_for_update()
+                ).scalar_one_or_none()
+
+                if case is None:
+                    raise VerificationIntegrityError(
+                        "Verification case not found"
+                    )
+
+                if case.status != CaseStatus.ANALYZING.value:
+                    raise VerificationIntegrityError(
+                        "Verification case is not analyzing"
+                    )
+
+                case.status = CaseStatus.AWAITING_REVIEW.value
+                case.recommendation = recommendation.recommendation.value
+                case.risk_score = risk.risk.score
+                case.risk_level = risk.risk.level
+                case.scoring_version = risk.risk.scoring_version
+                case.updated_at = utc_now()
+                case.version += 1
+
+                # Automated analysis can only place an agent under review.
+                # It cannot grant access.
+                agent.status = AgentStatus.UNDER_REVIEW
+
             db.commit()
 
             return CompleteVerificationResult(
@@ -144,6 +180,7 @@ def _run_verification_sync(
                     indicator.code
                     for indicator in risk.indicators
                 ),
+                case_id=case_id,
             )
 
         except Exception:
@@ -156,6 +193,7 @@ async def run_complete_verification(
     user_id: UUID,
     document_id: UUID,
     storage: SupabaseStorageService,
+    case_id: UUID | None = None,
 ) -> CompleteVerificationResult:
 
     document, content = await download_agent_document(
@@ -181,4 +219,5 @@ async def run_complete_verification(
         expected_storage_path=document.storage_path,
         expected_storage_bucket=document.storage_bucket,
         expected_checksum=document.sha256_checksum,
+        case_id=case_id,
     )

@@ -30,6 +30,17 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Reject obviously malformed bearer values locally. This avoids making an
+    # external authentication request for input that cannot be a Supabase JWT;
+    # JWT-shaped values are still verified by Supabase below.
+    token = credentials.credentials
+    if len(token.split(".")) != 3:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired access token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     settings = get_settings()
 
     if not settings.SUPABASE_URL or not settings.SUPABASE_PUBLISHABLE_KEY:
@@ -46,7 +57,7 @@ async def get_current_user(
     headers = {
         "apikey": settings.SUPABASE_PUBLISHABLE_KEY,
         "Authorization": (
-            f"Bearer {credentials.credentials}"
+            f"Bearer {token}"
         ),
     }
 

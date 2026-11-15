@@ -74,10 +74,14 @@ def test_stale_version():
 
 
 @pytest.mark.parametrize(
-    "action",
-    ["approve", "reject", "request_resubmission"],
+    ("action", "expected_agent_status"),
+    [
+        ("approve", "approved"),
+        ("reject", "rejected"),
+        ("request_resubmission", "pending"),
+    ],
 )
-def test_valid_decision(action):
+def test_valid_decision(action, expected_agent_status):
     db = MagicMock()
 
     reviewer_id = uuid.uuid4()
@@ -121,5 +125,6 @@ def test_valid_decision(action):
         "rejected",
         "resubmission_required",
     }
+    assert agent.status.value == expected_agent_status
 
     db.commit.assert_called_once()

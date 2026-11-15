@@ -51,16 +51,24 @@ export default function ReviewerDashboard() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => void mutate()}
-            disabled={isValidating}
-            className="rounded-lg bg-slate-900 px-5 py-2.5 text-white disabled:opacity-50"
-          >
-            {isValidating
-              ? "Refreshing..."
-              : "Refresh Queue"}
-          </button>
+          <div className="flex gap-3">
+            <Link
+              href="/reviewer/biometrics"
+              className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 font-medium text-slate-800"
+            >
+              Biometric Queue
+            </Link>
+            <button
+              type="button"
+              onClick={() => void mutate()}
+              disabled={isValidating}
+              className="rounded-lg bg-slate-900 px-5 py-2.5 text-white disabled:opacity-50"
+            >
+              {isValidating
+                ? "Refreshing..."
+                : "Refresh Queue"}
+            </button>
+          </div>
         </header>
 
         {isLoading && (

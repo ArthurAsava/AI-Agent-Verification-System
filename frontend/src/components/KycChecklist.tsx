@@ -1,6 +1,7 @@
 
 "use client";
 import KycDocumentManager from "@/components/KycDocumentManager";
+import BiometricSelfieCapture from "@/components/BiometricSelfieCapture";
 
 import { useEffect, useState } from "react";
 
@@ -83,6 +84,7 @@ export default function KycChecklist() {
         </p>
       )}
       <KycDocumentManager />
+      <BiometricSelfieCapture />
     </section>
   );
 }

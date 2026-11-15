@@ -48,6 +48,23 @@ def test_extract_complete_national_id():
     assert result.warnings == []
 
 
+def test_extract_national_id_front_preserves_storage_type():
+    text = """
+    ID NUMBER: 12345678
+    FULL NAME: JOHN KAMAU MWANGI
+    DATE OF BIRTH: 15/06/2000
+    SEX: MALE
+    """
+
+    result = extract_identity_fields(
+        make_ocr_result(text),
+        "national_id_front",
+    )
+
+    assert result.document_type == "national_id_front"
+    assert result.id_number == "12345678"
+
+
 def test_extract_passport():
     text = """
     PASSPORT NUMBER: A12345678

@@ -13,6 +13,13 @@ export interface KycDocument {
   mime_type: string;
   file_size_bytes: number;
   status: string;
+  biometric_check_id?: string | null;
+}
+
+export interface VerificationSubmission {
+  case_id: string;
+  status: string;
+  message: string;
 }
 
 export class KycApiError extends Error {
@@ -126,6 +133,46 @@ export async function uploadKycDocument(
   return response.json() as Promise<KycDocument>;
 }
 
+export async function uploadBiometricSelfie(
+  file: File,
+): Promise<KycDocument> {
+  const formData = new FormData();
+
+  formData.append("consent", "true");
+  formData.append("file", file);
+
+  const response = await authenticatedRequest(
+    "/api/v1/kyc/documents/biometric-selfie",
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  return response.json() as Promise<KycDocument>;
+}
+
+export interface DiditSession {
+  check_id: string;
+  provider: "didit";
+  session_id: string;
+  verification_url: string;
+  status: string;
+}
+
+export async function startDiditSession(): Promise<DiditSession> {
+  const response = await authenticatedRequest(
+    "/api/v1/biometric/didit/sessions",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ biometric_consent: true }),
+    },
+  );
+
+  return response.json() as Promise<DiditSession>;
+}
+
 export async function downloadKycDocument(
   documentId: string
 ): Promise<Blob> {
@@ -134,4 +181,17 @@ export async function downloadKycDocument(
   );
 
   return response.blob();
+}
+
+export async function submitKycDocumentForVerification(
+  documentId: string
+): Promise<VerificationSubmission> {
+  const response = await authenticatedRequest(
+    `/verification/documents/${encodeURIComponent(documentId)}/submit`,
+    {
+      method: "POST",
+    }
+  );
+
+  return response.json() as Promise<VerificationSubmission>;
 }

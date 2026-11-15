@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.auth import get_current_user
+from app.core.auth import CurrentUser, get_current_user
 from app.core.database import get_db
 
 from app.models.entities import Agent
@@ -18,6 +18,7 @@ from app.schemas.verification_api import (
     AgentVerificationResponse,
     ReviewQueueResponse,
     ReviewerCaseDetail,
+    VerificationAnalysisResponse,
     VerificationCaseSummary,
     VerificationDecisionRequest,
     VerificationDecisionResponse,
@@ -31,9 +32,33 @@ from app.services.verification.reviewer_service import (
     VerificationDecisionValidationError,
     VerificationDecisionPersistenceError,
 )
-
-from app.core.auth import CurrentUser, get_current_user
 from app.core.reviewer_auth import require_reviewer
+from app.services.kyc_retrieval_service import (
+    DocumentNotFoundError,
+    DocumentRetrievalError,
+)
+from app.services.storage_service import (
+    SupabaseStorageService,
+    get_storage_service,
+)
+from app.services.verification.document_integrity import (
+    DocumentIntegrityError,
+)
+from app.services.verification.document_processor import (
+    DocumentProcessingError,
+)
+from app.services.verification.identity_extractor import (
+    IdentityExtractionError,
+)
+from app.services.verification.ocr_service import OCRProcessingError
+from app.services.verification.persistence import (
+    VerificationIntegrityError,
+    VerificationPersistenceError,
+)
+from app.services.verification.submission_service import (
+    VerificationDocumentNotFoundError,
+    submit_document_for_verification,
+)
 
 router = APIRouter(
     prefix="/verification",
@@ -41,9 +66,7 @@ router = APIRouter(
 )
 
 
-# ---------------------------------------------------------
 # Authentication helpers
-# ---------------------------------------------------------
 
 def _authenticated_user_id(user: Any) -> UUID:
     """
@@ -79,31 +102,74 @@ def _authenticated_user_id(user: Any) -> UUID:
         )
 
 
-def require_reviewer(
-    user: Any = Depends(get_current_user),
-) -> UUID:
-    """
-    Reviewer authorization dependency.
-
-    This intentionally denies reviewer access until
-    a trusted server-side reviewer-role lookup is
-    implemented and connected.
-
-    Never authorize reviewers using a client-provided
-    role or an unchecked JWT metadata field.
-    """
-
-    _authenticated_user_id(user)
-
-    raise HTTPException(
-        status_code=403,
-        detail="Reviewer access is not configured.",
-    )
-
-
-# ---------------------------------------------------------
 # Agent verification status
-# ---------------------------------------------------------
+
+
+@router.post(
+    "/documents/{document_id}/submit",
+    response_model=VerificationAnalysisResponse,
+)
+async def submit_verification_document(
+    document_id: UUID,
+    user: CurrentUser = Depends(get_current_user),
+    storage: SupabaseStorageService = Depends(get_storage_service),
+):
+    """Submit one owned identity document for human-reviewed verification."""
+
+    try:
+        result = await submit_document_for_verification(
+            user_id=user.id,
+            document_id=document_id,
+            storage=storage,
+        )
+    except (
+        VerificationDocumentNotFoundError,
+        DocumentNotFoundError,
+    ) as exc:
+        raise HTTPException(
+            status_code=404,
+            detail="KYC document not found.",
+        ) from exc
+    except DocumentRetrievalError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Document retrieval is temporarily unavailable.",
+        ) from exc
+    except (
+        VerificationIntegrityError,
+        DocumentIntegrityError,
+        DocumentProcessingError,
+        OCRProcessingError,
+        IdentityExtractionError,
+    ) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "This document could not be analyzed. "
+                "Please upload a clear supported identity document."
+            ),
+        ) from exc
+    except VerificationPersistenceError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Verification results could not be saved.",
+        ) from exc
+
+    if result.status == "awaiting_review":
+        message = (
+            "Document analysis completed. Your case is awaiting "
+            "a human review."
+        )
+    elif result.status == "analyzing":
+        message = "Your document is already being analyzed."
+    else:
+        message = "Your existing verification case was reused."
+
+    return VerificationAnalysisResponse(
+        case_id=result.case_id,
+        status=result.status,
+        message=message,
+    )
 
 @router.get(
     "/me",

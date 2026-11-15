@@ -2,6 +2,9 @@
 import { createClient } from "@/lib/supabase/client";
 
 import type {
+  BiometricReviewDecisionRequest,
+  BiometricReviewDecisionResponse,
+  BiometricReviewQueueResponse,
   ReviewQueueResponse,
   ReviewerCase,
   VerificationDecisionRequest,
@@ -124,4 +127,71 @@ export function submitReviewerDecision(
       body: JSON.stringify(payload),
     },
   );
+}
+
+export function getBiometricReviewQueue(
+  signal?: AbortSignal,
+): Promise<BiometricReviewQueueResponse> {
+  return reviewerRequest<BiometricReviewQueueResponse>(
+    "/biometric-reviews",
+    { signal },
+  );
+}
+
+export function submitBiometricReviewDecision(
+  checkId: string,
+  payload: BiometricReviewDecisionRequest,
+): Promise<BiometricReviewDecisionResponse> {
+  return reviewerRequest<BiometricReviewDecisionResponse>(
+    `/biometric-reviews/${encodeURIComponent(checkId)}/decision`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function downloadBiometricReviewDocument(
+  checkId: string,
+  documentId: string,
+): Promise<{ blob: Blob; mimeType: string }> {
+  const token = await getAccessToken();
+  const response = await fetch(
+    `${API_URL}/verification/biometric-reviews/${encodeURIComponent(
+      checkId,
+    )}/documents/${encodeURIComponent(documentId)}/download`,
+    {
+      cache: "no-store",
+      headers: {
+        Accept: "application/octet-stream",
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    let message = "Unable to open the review document.";
+
+    try {
+      const body = await response.json();
+      if (typeof body.detail === "string") {
+        message = body.detail;
+      }
+    } catch {
+      // Preserve the generic error message.
+    }
+
+    if (response.status === 403) {
+      message = "You do not have reviewer permission.";
+    }
+
+    throw new ReviewerApiError(message, response.status);
+  }
+
+  return {
+    blob: await response.blob(),
+    mimeType:
+      response.headers.get("content-type") ??
+      "application/octet-stream",
+  };
 }

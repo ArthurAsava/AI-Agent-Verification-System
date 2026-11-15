@@ -11,6 +11,7 @@ from pypdf import PdfReader
 
 
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MiB
+MIN_BIOMETRIC_SELFIE_DIMENSION = 320
 
 ALLOWED_MIME_TYPES = {
     "application/pdf": ".pdf",
@@ -38,6 +39,39 @@ class ValidatedFile:
     size_bytes: int
     sha256_checksum: str
     content: bytes
+
+
+def validate_biometric_selfie_file(
+    validated_file: ValidatedFile,
+) -> None:
+    """Apply the additional constraints for a selfie capture.
+
+    A biometric selfie must be an image, never a PDF. This validates only
+    basic capture quality; liveness and face matching require an approved
+    provider or human reviewer.
+    """
+
+    if validated_file.mime_type not in {
+        "image/jpeg",
+        "image/png",
+    }:
+        raise FileValidationError(
+            "A biometric selfie must be a JPEG or PNG image."
+        )
+
+    try:
+        with Image.open(io.BytesIO(validated_file.content)) as image:
+            width, height = image.size
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        raise FileValidationError(
+            "The biometric selfie could not be decoded."
+        ) from exc
+
+    if min(width, height) < MIN_BIOMETRIC_SELFIE_DIMENSION:
+        raise FileValidationError(
+            "The biometric selfie must be at least "
+            f"{MIN_BIOMETRIC_SELFIE_DIMENSION} pixels on each side."
+        )
 
 
 def detect_file_type(content: bytes) -> str:

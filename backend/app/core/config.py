@@ -1,6 +1,8 @@
 
 from functools import lru_cache
+from typing import Literal
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,6 +21,15 @@ class Settings(BaseSettings):
     supabase_url: str | None = None
     supabase_service_role_key: str | None = None
     supabase_storage_bucket: str = "agent-kyc-documents"
+
+    # These server-only values are deliberately absent from the frontend.
+    DIDIT_ENABLED: bool = False
+    DIDIT_API_KEY: SecretStr | None = None
+    DIDIT_WORKFLOW_ID: str | None = None
+    DIDIT_WEBHOOK_SECRET: SecretStr | None = None
+    DIDIT_WEBHOOK_PREVIOUS_SECRET: SecretStr | None = None
+    DIDIT_RETURN_URL: str | None = None
+    DIDIT_ENVIRONMENT: Literal["sandbox", "production"] = "sandbox"
 
     model_config = SettingsConfigDict(
         env_file=".env",

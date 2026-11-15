@@ -44,6 +44,6 @@ def get_kyc_requirements(
             "Ensure the personal details match.",
             "Do not share identity documents by email.",
         ],
-        "uploads_enabled": False,
-        "verification_available": False,
+        "uploads_enabled": True,
+        "verification_available": True,
     }

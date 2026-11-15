@@ -6,6 +6,9 @@ from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.exceptions import AppException, app_exception_handler
 from app.api.routes.verification import router as verification_router
+from app.api.routes.biometric_review import (
+    router as biometric_review_router,
+)
 
 import logging
 from app.core.logging_config import configure_logging
@@ -30,6 +33,7 @@ app = FastAPI(
 )
 
 app.include_router(verification_router)
+app.include_router(biometric_review_router)
 
 app.add_exception_handler(
     AppException,

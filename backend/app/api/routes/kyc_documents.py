@@ -35,9 +35,11 @@ from app.services.file_validation import (
 )
 from app.services.kyc_upload_service import (
     AgentNotFoundError,
+    BiometricConsentRequiredError,
     DocumentCleanupError,
     DocumentUploadError,
     InvalidDocumentTypeError,
+    upload_biometric_selfie,
     upload_kyc_document,
 )
 from app.services.storage_service import (
@@ -61,6 +63,37 @@ class KYCDocumentUploadResponse(BaseModel):
     mime_type: str
     file_size_bytes: int
     status: str
+    biometric_check_id: uuid.UUID | None = None
+
+
+async def _read_upload_content(file: UploadFile) -> bytes:
+    """Read one bounded upload and always release its temporary file."""
+
+    try:
+        content = await file.read(MAX_FILE_SIZE + 1)
+    finally:
+        await file.close()
+
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail="File exceeds the 5 MiB limit.",
+        )
+
+    return content
+
+
+def _to_upload_response(result) -> KYCDocumentUploadResponse:
+    return KYCDocumentUploadResponse(
+        document_id=result.document_id,
+        agent_id=result.agent_id,
+        document_type=result.document_type,
+        original_filename=result.original_filename,
+        mime_type=result.mime_type,
+        file_size_bytes=result.file_size_bytes,
+        status=result.status,
+        biometric_check_id=result.biometric_check_id,
+    )
 
 
 @router.post(
@@ -83,18 +116,7 @@ async def create_kyc_document(
 
     user_id = user.id
 
-    # Read no more than 5 MiB plus one byte.
-    # An extra byte lets us detect oversized files.
-    try:
-        content = await file.read(MAX_FILE_SIZE + 1)
-    finally:
-        await file.close()
-
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=413,
-            detail="File exceeds the 5 MiB limit.",
-        )
+    content = await _read_upload_content(file)
 
     try:
         result = await upload_kyc_document(
@@ -147,15 +169,82 @@ async def create_kyc_document(
             detail="Document upload could not be completed.",
         ) from exc
 
-    return KYCDocumentUploadResponse(
-        document_id=result.document_id,
-        agent_id=result.agent_id,
-        document_type=result.document_type,
-        original_filename=result.original_filename,
-        mime_type=result.mime_type,
-        file_size_bytes=result.file_size_bytes,
-        status=result.status,
-    )
+    return _to_upload_response(result)
+
+
+@router.post(
+    "/biometric-selfie",
+    response_model=KYCDocumentUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_biometric_selfie(
+    consent: bool = Form(...),
+    file: UploadFile = File(...),
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    storage: SupabaseStorageService = Depends(get_storage_service),
+):
+    """Capture a consented selfie for a human biometric review.
+
+    Liveness and face-match results are deliberately not inferred from a
+    single image. Those assessments remain manual until an approved biometric
+    provider is integrated.
+    """
+
+    if consent is not True:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Explicit consent is required before capturing a biometric selfie."
+            ),
+        )
+
+    content = await _read_upload_content(file)
+
+    try:
+        result = await upload_biometric_selfie(
+            db=db,
+            storage=storage,
+            user_id=user.id,
+            consent=consent,
+            filename=file.filename or "",
+            content=content,
+            declared_content_type=file.content_type,
+        )
+    except FileValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
+    except BiometricConsentRequiredError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
+    except AgentNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        ) from exc
+    except StorageConfigurationError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Document storage is unavailable.",
+        ) from exc
+    except DocumentCleanupError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Biometric capture could not be secured. Please contact support."
+            ),
+        ) from exc
+    except DocumentUploadError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Biometric capture could not be stored.",
+        ) from exc
+
+    return _to_upload_response(result)
 
 
 class KYCDocumentResponse(BaseModel):

@@ -9,6 +9,7 @@ import {
   listKycDocuments,
   uploadKycDocument,
   downloadKycDocument,
+  submitKycDocumentForVerification,
   type KycDocument,
 } from "@/lib/kyc-api";
 
@@ -32,6 +33,12 @@ function formatBytes(bytes: number) {
   return `${(bytes / 1024).toFixed(1)} KB`;
 }
 
+function canSubmitForVerification(document: KycDocument) {
+  return ["national_id_front", "passport"].includes(
+    document.document_type
+  );
+}
+
 function errorMessage(error: unknown) {
   if (error instanceof KycApiError && error.status === 401) {
     return "Your session has expired. Please sign in again.";
@@ -50,6 +57,9 @@ export default function KycDocumentManager() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(
+    null
+  );
+  const [verifyingId, setVerifyingId] = useState<string | null>(
     null
   );
   const [error, setError] = useState("");
@@ -115,13 +125,18 @@ export default function KycDocumentManager() {
     setMessage("");
 
     try {
-      await uploadKycDocument(documentType, file);
+      const uploaded = await uploadKycDocument(documentType, file);
       await loadDocuments();
 
       setFile(null);
-      setMessage(
-        "Document uploaded successfully. Verification is pending."
-      );
+
+      if (canSubmitForVerification(uploaded)) {
+        await handleVerification(uploaded);
+      } else {
+        setMessage(
+          "Document uploaded. Upload a National ID front or passport to start identity verification."
+        );
+      }
 
       const input = document.getElementById(
         "kyc-document-file"
@@ -132,6 +147,26 @@ export default function KycDocumentManager() {
       setError(errorMessage(err));
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleVerification(document: KycDocument) {
+    if (verifyingId) return;
+
+    setVerifyingId(document.document_id);
+    setError("");
+
+    try {
+      const result = await submitKycDocumentForVerification(
+        document.document_id
+      );
+
+      setMessage(result.message);
+      await loadDocuments();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setVerifyingId(null);
     }
   }
 
@@ -263,13 +298,30 @@ export default function KycDocumentManager() {
 
               <button
                 type="button"
-                disabled={downloadingId !== null}
+                disabled={
+                  downloadingId !== null || verifyingId !== null
+                }
                 onClick={() => void handleDownload(doc)}
               >
                 {downloadingId === doc.document_id
                   ? "Downloading..."
                   : "Download"}
               </button>
+
+              {canSubmitForVerification(doc) && (
+                <button
+                  type="button"
+                  disabled={
+                    downloadingId !== null || verifyingId !== null
+                  }
+                  onClick={() => void handleVerification(doc)}
+                  style={{ marginLeft: 12 }}
+                >
+                  {verifyingId === doc.document_id
+                    ? "Submitting..."
+                    : "Start verification"}
+                </button>
+              )}
             </li>
           ))}
         </ul>
