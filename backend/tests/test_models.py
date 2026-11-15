@@ -3,6 +3,7 @@ from sqlalchemy import inspect
 
 from app.core.database import Base
 import app.models
+from app.models.verification_case import VerificationCase
 
 
 EXPECTED_TABLES = {
@@ -12,6 +13,8 @@ EXPECTED_TABLES = {
     "fraud_assessments",
     "audit_logs",
      "agent_onboarding",
+     "verification_cases",
+     "verification_reviewers",
 }
 
 
