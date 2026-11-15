@@ -9,8 +9,12 @@ locally stored selfie to Didit and does not retain Didit's media URLs or raw
 verification payloads.
 
 The signed Didit webhook is reduced to session and feature statuses in
-`verification_checks.result_data`. A SalesMesh reviewer still records the
-final decision; a provider result never changes `Agent.status` automatically.
+`verification_checks.result_data`. Phase 9 retrieves the authoritative Didit
+session decision only after signature verification, then persists a minimized
+summary: provider status, finality, feature statuses, and synchronization time.
+SalesMesh never stores names, date of birth, document numbers, media URLs, or
+the raw Didit decision payload. A SalesMesh reviewer still records the final
+decision; a provider result never changes `Agent.status` automatically.
 
 ## Configure the sandbox
 
@@ -61,8 +65,11 @@ final decision; a provider result never changes `Agent.status` automatically.
 3. Complete the hosted sandbox flow with Didit's test data and scenario tools,
    not real identity or biometric data.
 4. Didit sends its HMAC-signed `status.updated` webhook. SalesMesh verifies
-   `X-Timestamp` and `X-Signature-V2`, deduplicates its event ID, and records
-   only limited statuses for the reviewer.
+   `X-Timestamp` and `X-Signature-V2`, then retrieves the authoritative
+   session decision with its server-only API key. SalesMesh deduplicates the
+   event ID and records only the minimized KYC status evidence for the agent
+   and reviewer views. A temporary decision-retrieval failure returns `503`,
+   allowing Didit to retry the signed webhook.
 5. A reviewer records the final SalesMesh biometric decision.
 
 ## Before production

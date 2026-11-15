@@ -15,9 +15,12 @@ from app.services import didit_service as service
 from app.services.didit_service import (
     DiditConfig,
     DiditConsentRequiredError,
+    DiditDecisionRetrievalError,
+    get_didit_kyc_status,
     get_didit_config,
     record_didit_webhook,
     start_didit_session,
+    sync_didit_kyc_decision,
 )
 
 
@@ -164,3 +167,193 @@ def test_valid_didit_webhook_never_changes_biometric_check_status(monkeypatch):
         "face_match": "Approved",
     }
     db.commit.assert_called_once()
+
+
+def test_kyc_decision_minimization_never_persists_identity_fields():
+    config = configured_didit()
+    summary = service._minimize_kyc_decision(
+        config=config,
+        session_id="session-123",
+        decision={
+            "session_id": "session-123",
+            "session_kind": "user",
+            "environment": "sandbox",
+            "status": "Approved",
+            "id_verifications": [{
+                "status": "Approved",
+                "full_name": "Example Person",
+                "date_of_birth": "1990-01-01",
+                "document_number": "ABC123",
+                "media_url": "https://provider.example/document",
+            }],
+            "liveness_checks": [{"status": "Approved"}],
+            "face_matches": [{"status": "Approved"}],
+            "ip_analyses": [{"status": "Approved"}],
+        },
+    )
+
+    assert summary["status"] == "Approved"
+    assert summary["is_final"] is True
+    assert summary["actions"] == {
+        "id_verification": "Approved",
+        "liveness": "Approved",
+        "face_match": "Approved",
+        "ip_analysis": "Approved",
+    }
+    assert "Example Person" not in str(summary)
+    assert "ABC123" not in str(summary)
+    assert "media_url" not in str(summary)
+
+
+@pytest.mark.asyncio
+async def test_kyc_decision_retrieval_uses_the_server_only_provider_key(monkeypatch):
+    captured = {}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "session_id": "session-123",
+                "session_kind": "user",
+                "environment": "sandbox",
+                "status": "In Review",
+                "id_verifications": [{"status": "Approved"}],
+            }
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def get(self, url, *, headers):
+            captured["url"] = url
+            captured["headers"] = headers
+            return FakeResponse()
+
+    monkeypatch.setattr(service.httpx, "AsyncClient", lambda **kwargs: FakeClient())
+
+    summary = await service._retrieve_didit_kyc_decision(
+        config=configured_didit(),
+        session_id="session-123",
+    )
+
+    assert captured["url"] == (
+        "https://verification.didit.me/v3/session/session-123/decision/"
+    )
+    assert captured["headers"] == {
+        "x-api-key": "didit-api-key-test",
+        "Accept": "application/json",
+    }
+    assert summary["status"] == "In Review"
+    assert summary["actions"] == {"id_verification": "Approved"}
+
+
+@pytest.mark.asyncio
+async def test_kyc_sync_persists_only_minimized_provider_evidence(monkeypatch):
+    check = SimpleNamespace(
+        id=uuid.uuid4(),
+        agent_id=uuid.uuid4(),
+        status=CheckStatus.NEEDS_REVIEW,
+        result_data={"didit": {"session_id": "session-123"}},
+    )
+    db = MagicMock()
+    db.execute.return_value.scalar_one_or_none.return_value = check
+    monkeypatch.setattr(service, "get_didit_config", configured_didit)
+
+    async def fake_retrieve(*, config, session_id):
+        assert config == configured_didit()
+        assert session_id == "session-123"
+        return {
+            "source": "session_decision",
+            "session_kind": "user",
+            "status": "Approved",
+            "is_final": True,
+            "actions": {"id_verification": "Approved"},
+            "synced_at": "2026-11-15T00:00:00+00:00",
+        }
+
+    monkeypatch.setattr(service, "_retrieve_didit_kyc_decision", fake_retrieve)
+
+    result = await sync_didit_kyc_decision(
+        db=db,
+        session_id="session-123",
+        event_id="event-123",
+    )
+
+    assert result == "synced"
+    assert check.status == CheckStatus.NEEDS_REVIEW
+    assert check.result_data["didit"]["kyc"] == {
+        "source": "session_decision",
+        "session_kind": "user",
+        "status": "Approved",
+        "is_final": True,
+        "actions": {"id_verification": "Approved"},
+        "synced_at": "2026-11-15T00:00:00+00:00",
+    }
+    assert check.result_data["didit"]["result"]["result_text"] == (
+        "Authoritative provider KYC decision synchronized."
+    )
+    db.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_kyc_sync_is_idempotent_after_a_successful_event(monkeypatch):
+    check = SimpleNamespace(
+        id=uuid.uuid4(),
+        agent_id=uuid.uuid4(),
+        status=CheckStatus.NEEDS_REVIEW,
+        result_data={
+            "didit": {
+                "session_id": "session-123",
+                "kyc_decision_event_id": "event-123",
+            }
+        },
+    )
+    db = MagicMock()
+    db.execute.return_value.scalar_one_or_none.return_value = check
+    monkeypatch.setattr(service, "get_didit_config", configured_didit)
+
+    async def should_not_retrieve(**kwargs):
+        raise AssertionError("duplicate events must not retrieve the decision again")
+
+    monkeypatch.setattr(service, "_retrieve_didit_kyc_decision", should_not_retrieve)
+
+    assert await sync_didit_kyc_decision(
+        db=db,
+        session_id="session-123",
+        event_id="event-123",
+    ) == "already_synced"
+    db.commit.assert_not_called()
+
+
+def test_agent_kyc_status_excludes_session_identifier_and_provider_payload():
+    agent = SimpleNamespace(id=uuid.uuid4())
+    check = SimpleNamespace(
+        id=uuid.uuid4(),
+        status=CheckStatus.NEEDS_REVIEW,
+        result_data={
+            "didit": {
+                "session_id": "provider-session-should-not-leak",
+                "kyc": {
+                    "status": "Approved",
+                    "is_final": True,
+                    "actions": {"liveness": "Approved"},
+                    "synced_at": "2026-11-15T00:00:00+00:00",
+                },
+            }
+        },
+    )
+    db = MagicMock()
+    db.execute.return_value.scalar_one_or_none.return_value = agent
+    db.execute.return_value.scalars.return_value.first.return_value = check
+
+    status = get_didit_kyc_status(db=db, user_id=uuid.uuid4())
+
+    assert status is not None
+    assert status.provider_status == "Approved"
+    assert status.actions == {"liveness": "Approved"}
+    assert "provider-session" not in str(status)
