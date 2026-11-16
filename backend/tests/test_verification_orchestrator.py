@@ -124,7 +124,8 @@ def test_completed_analysis_moves_case_to_human_review(monkeypatch):
         pipeline_result=SimpleNamespace(
             analysis=SimpleNamespace(
                 outcome=VerificationOutcome.PASS,
-            )
+            ),
+            document_sex="MALE",
         ),
     )
     risk = SimpleNamespace(
@@ -196,6 +197,7 @@ def test_completed_analysis_moves_case_to_human_review(monkeypatch):
     assert case.risk_score == 15
     assert case.risk_level == "low"
     assert case.scoring_version == "risk-rules-v1"
+    assert case.avatar_variant.value == "male"
     assert case.version == 1
     assert agent.status.value == "under_review"
     db.commit.assert_called_once()

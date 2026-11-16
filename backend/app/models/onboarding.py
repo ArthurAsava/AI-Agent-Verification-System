@@ -34,7 +34,6 @@ class AgentOnboarding(Base):
         ),
         unique=True,
         nullable=False,
-        index=True,
     )
 
     county: Mapped[str | None] = mapped_column(

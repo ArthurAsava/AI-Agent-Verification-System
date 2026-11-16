@@ -5,10 +5,13 @@ import pytest
 from sqlalchemy import create_engine, inspect, text
 
 
-pytestmark = pytest.mark.skipif(
-    os.getenv("RUN_DB_TESTS") != "1",
-    reason="Live database tests require RUN_DB_TESTS=1",
-)
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        os.getenv("RUN_DB_TESTS") != "1",
+        reason="Live database tests require RUN_DB_TESTS=1",
+    ),
+]
 
 
 SECURED_PUBLIC_TABLES = {
@@ -123,3 +126,19 @@ def test_database_migration_applied(connection):
     ).scalar_one_or_none()
 
     assert revision is not None
+
+
+def test_agent_onboarding_has_one_unique_agent_lookup(connection):
+    indexes = connection.execute(
+        text(
+            """
+            SELECT indexname
+            FROM pg_indexes
+            WHERE schemaname = 'public'
+              AND tablename = 'agent_onboarding'
+              AND indexdef LIKE 'CREATE UNIQUE INDEX% (agent_id)'
+            """
+        )
+    ).scalars().all()
+
+    assert indexes == ["agent_onboarding_agent_id_key"]

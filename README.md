@@ -45,14 +45,16 @@ system developed for the SalesMesh platform.
 
 ## Current Progress
 
-Phase 12 - Production security hardening complete.
+Phase 13 - System test and evaluation complete.
 
 The verification subsystem now includes document and provider evidence,
 explainable fraud signals, human review queues, server-enforced reviewer and
 administrator access, an aggregate administration dashboard, and a
-server-only application-data boundary. See the phase completion notes in
-`docs/` for the operational boundaries, production configuration, and release
-checks.
+server-only application-data boundary. The Phase 13 evaluation passed the
+automated backend, live development-database, frontend production-build, and
+dependency-audit gates. See
+[`docs/PHASE_13_COMPLETION.md`](docs/PHASE_13_COMPLETION.md) for the tested
+requirements, evidence, known limitations, and Phase 14 release checks.
 
 ## Security
 
