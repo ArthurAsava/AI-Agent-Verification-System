@@ -36,6 +36,9 @@ from app.services.verification.risk_engine import assess_risk
 from app.services.verification.recommendation import (
     build_recommendation,
 )
+from app.services.profile_avatar_service import (
+    avatar_variant_from_document_sex,
+)
 from app.services.verification.decision_contracts import CaseStatus
 from app.services.verification.persistence import (
     VerificationIntegrityError,
@@ -178,6 +181,9 @@ def _run_verification_sync(
                 case.risk_score = risk.risk.score
                 case.risk_level = risk.risk.level
                 case.scoring_version = risk.risk.scoring_version
+                case.avatar_variant = avatar_variant_from_document_sex(
+                    workflow.pipeline_result.document_sex
+                )
                 case.updated_at = utc_now()
                 case.version += 1
 

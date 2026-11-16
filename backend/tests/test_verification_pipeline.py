@@ -138,6 +138,7 @@ def test_matching_document_passes():
         result.analysis.outcome
         == VerificationOutcome.PASS
     )
+    assert result.document_sex == "MALE"
 
 
 def test_name_mismatch_requires_review():

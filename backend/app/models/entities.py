@@ -35,6 +35,13 @@ class AgentStatus(str, enum.Enum):
     SUSPENDED = "suspended"
 
 
+class AvatarVariant(str, enum.Enum):
+    """Server-controlled profile visual selected from a verified document."""
+
+    MALE = "male"
+    FEMALE = "female"
+
+
 class DocumentStatus(str, enum.Enum):
     PENDING = "pending"
     VERIFIED = "verified"
@@ -72,6 +79,14 @@ class Agent(Base):
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     phone_number: Mapped[str | None] = mapped_column(String(30))
+    avatar_variant: Mapped[AvatarVariant | None] = mapped_column(
+        Enum(
+            AvatarVariant,
+            name="avatar_variant",
+            values_callable=lambda e: [item.value for item in e],
+        ),
+        nullable=True,
+    )
     status: Mapped[AgentStatus] = mapped_column(
         Enum(
             AgentStatus,

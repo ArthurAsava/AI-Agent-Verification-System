@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.entities import AgentStatus
+from app.models.entities import AgentStatus, AvatarVariant
 
 
 class AgentCreate(BaseModel):
@@ -45,6 +45,7 @@ class AgentResponse(BaseModel):
     first_name: str
     last_name: str
     phone_number: str | None
+    avatar_variant: AvatarVariant | None
     status: AgentStatus
     created_at: datetime
     updated_at: datetime

@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import (
     DateTime,
+    Enum,
     ForeignKey,
     Integer,
     String,
@@ -15,6 +16,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
+from app.models.entities import AvatarVariant
 
 
 def utc_now() -> datetime:
@@ -76,6 +78,17 @@ class VerificationCase(Base):
 
     scoring_version: Mapped[str | None] = mapped_column(
         String(50),
+        nullable=True,
+    )
+
+    # A transient, server-generated candidate from the submitted document. It
+    # becomes visible on the agent profile only after a reviewer approves.
+    avatar_variant: Mapped[AvatarVariant | None] = mapped_column(
+        Enum(
+            AvatarVariant,
+            name="avatar_variant",
+            values_callable=lambda e: [item.value for item in e],
+        ),
         nullable=True,
     )
 

@@ -11,6 +11,7 @@ export interface AgentProfile {
   first_name: string;
   last_name: string;
   phone_number: string | null;
+  avatar_variant: "male" | "female" | null;
   status: string;
   created_at: string;
   updated_at: string;

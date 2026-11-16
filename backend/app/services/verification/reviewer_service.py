@@ -187,6 +187,11 @@ def record_verification_decision(
         # automated recommendation. Protected SalesMesh features can rely on
         # this server-controlled status.
         agent.status = ACTION_TO_AGENT_STATUS[normalized_action]
+        if (
+            normalized_action == ReviewerAction.APPROVE
+            and getattr(case, "avatar_variant", None) is not None
+        ):
+            agent.avatar_variant = case.avatar_variant
 
         audit = AuditLog(
             agent_id=case.agent_id,

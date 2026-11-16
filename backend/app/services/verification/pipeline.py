@@ -36,6 +36,7 @@ class VerificationPipelineResult:
     quality_score: int
     quality_status: str
     match_status: MatchStatus
+    document_sex: str | None = None
 
 
 def analyze_kyc_document(
@@ -149,4 +150,7 @@ def analyze_kyc_document(
         quality_score=quality_result.score,
         quality_status=quality_result.status,
         match_status=match_result.overall_status,
+        # This value is intentionally transient. It is converted to the small
+        # display enum only for the server-side verification case.
+        document_sex=identity_result.sex,
     )

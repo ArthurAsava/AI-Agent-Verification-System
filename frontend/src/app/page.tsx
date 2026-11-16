@@ -1,8 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
 
 import AppHeader from "@/components/AppHeader";
 import BackendStatus from "@/components/BackendStatus";
+import HeroProfileFigure from "@/components/HeroProfileFigure";
 
 const steps = [
   {
@@ -48,35 +48,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div
-          className="hero-figure"
-          tabIndex={0}
-          role="img"
-          aria-label="A 3D profile figure that changes into a suited professional on hover or focus"
-        >
-          <div className="hero-figure__halo" aria-hidden="true" />
-          <Image
-            className="hero-figure__image hero-figure__image--profile"
-            src="/images/hero-profile-mannequin.png"
-            alt=""
-            fill
-            priority
-            sizes="(max-width: 760px) 80vw, 43vw"
-          />
-          <Image
-            className="hero-figure__image hero-figure__image--suit"
-            src="/images/hero-profile-suit.png"
-            alt=""
-            fill
-            priority
-            sizes="(max-width: 760px) 80vw, 43vw"
-          />
-          <p className="hero-figure__hint">Hover to suit up</p>
-          <div className="hero-figure__card" aria-hidden="true">
-            <span>Passport profile</span>
-            <strong>SM / 001</strong>
-          </div>
-        </div>
+        <HeroProfileFigure />
 
         <div className="hero__footer">
           <p>Built for credible growth.</p>

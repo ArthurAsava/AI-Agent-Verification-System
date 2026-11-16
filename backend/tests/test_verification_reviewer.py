@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from app.models.entities import AvatarVariant
 from app.services.verification.reviewer_service import (
     record_verification_decision,
     ReviewerAuthorizationError,
@@ -128,3 +129,34 @@ def test_valid_decision(action, expected_agent_status):
     assert agent.status.value == expected_agent_status
 
     db.commit.assert_called_once()
+
+
+def test_approval_assigns_verified_avatar_variant():
+    db = MagicMock()
+    reviewer_id = uuid.uuid4()
+    agent_id = uuid.uuid4()
+    case = SimpleNamespace(
+        id=uuid.uuid4(),
+        agent_id=agent_id,
+        status="awaiting_review",
+        version=0,
+        avatar_variant=AvatarVariant.FEMALE,
+    )
+    agent = SimpleNamespace(
+        id=agent_id,
+        user_id=uuid.uuid4(),
+        avatar_variant=None,
+    )
+    db.execute.return_value.scalar_one_or_none.side_effect = [case, agent]
+
+    record_verification_decision(
+        db=db,
+        case_id=case.id,
+        reviewer_user_id=reviewer_id,
+        action="approve",
+        reason="Identity evidence was reviewed and approved.",
+        expected_version=0,
+        reviewer_authorized=True,
+    )
+
+    assert agent.avatar_variant is AvatarVariant.FEMALE
