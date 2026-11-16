@@ -5,6 +5,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import AuthFrame from "@/components/AuthFrame";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -38,37 +39,50 @@ export default function LoginPage() {
   }
 
   return (
-    <main style={{ maxWidth: 420, margin: "60px auto" }}>
-      <h1>Agent Login</h1>
+    <AuthFrame
+      eyebrow="Welcome back"
+      title="Continue your journey."
+      description="Sign in to view your profile, finish verification, and follow every next step."
+    >
+      <form className="auth-form" onSubmit={handleLogin}>
+        <div className="auth-field">
+          <label htmlFor="email">Email address</label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
 
-      <form onSubmit={handleLogin}>
-        <label htmlFor="email">Email</label>
-        <input
-          id="email"
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <div className="auth-field">
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
 
-        <label htmlFor="password">Password</label>
-        <input
-          id="password"
-          type="password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-
-        <button disabled={loading} type="submit">
-          {loading ? "Signing in..." : "Log in"}
+        <button className="button button--dark" disabled={loading} type="submit">
+          {loading ? "Signing you in..." : "Log in to SalesMesh"}
         </button>
       </form>
 
-      <p role="alert">{errorMessage}</p>
-      <p>
-        No account? <Link href="/signup">Sign up</Link>
+      <p
+        className={`auth-message${errorMessage ? " auth-message--error" : ""}`}
+        role="alert"
+      >
+        {errorMessage}
       </p>
-    </main>
+      <p className="auth-switch">
+        New to SalesMesh? <Link href="/signup">Create your account</Link>
+      </p>
+    </AuthFrame>
   );
 }

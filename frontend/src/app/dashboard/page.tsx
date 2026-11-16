@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import AppHeader from "@/components/AppHeader";
 import {
   AgentProfile,
   getMyAgentProfile,
@@ -108,106 +109,99 @@ export default function DashboardPage() {
   }
 
   if (loading) {
-    return <main><p>Loading dashboard...</p></main>;
+    return (
+      <main className="app-page">
+        <AppHeader />
+        <div className="app-content">
+          <p className="app-eyebrow">Preparing your workspace</p>
+          <h1 className="app-title">Loading your profile.</h1>
+        </div>
+      </main>
+    );
   }
 
   return (
-    <main style={{ maxWidth: 650, margin: "50px auto" }}>
-      <h1>SalesMesh Agent Dashboard</h1>
+    <main className="app-page">
+      <AppHeader />
+      <div className="app-content">
+        <p className="app-eyebrow">Agent workspace</p>
+        <h1 className="app-title">Your profile, in motion.</h1>
+        <p className="app-subtitle">
+          Everything you need to move your SalesMesh verification forward lives here.
+        </p>
 
-      <button onClick={handleLogout}>
-        Log out
-      </button>
-
-      <p role="status">{message}</p>
-
-      {needsRegistration && (
-        <form onSubmit={handleRegistration}>
-          <h2>Complete Agent Registration</h2>
-
-          <input
-            aria-label="First name"
-            placeholder="First name"
-            required
-            minLength={2}
-            value={firstName}
-            onChange={(e) =>
-              setFirstName(e.target.value)
-            }
-          />
-
-          <input
-            aria-label="Last name"
-            placeholder="Last name"
-            required
-            minLength={2}
-            value={lastName}
-            onChange={(e) =>
-              setLastName(e.target.value)
-            }
-          />
-
-          <input
-            aria-label="Phone number"
-            placeholder="Phone number (optional)"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
-
-          <button type="submit">
-            Complete registration
+        <div className="app-toolbar">
+          <p className="status-message" role="status">{message}</p>
+          <button className="button button--dark" onClick={handleLogout}>
+            Log out
           </button>
-        </form>
-      )}
+        </div>
 
-      
-{profile && (
-  <section>
-    <h2>My Profile</h2>
+        {needsRegistration && (
+          <section className="app-panel">
+            <p className="app-eyebrow">Profile setup</p>
+            <h2>Complete your agent profile.</h2>
+            <p>Give us the basics, then we will guide you through identity verification.</p>
 
-    <p>
-      Name: {profile.first_name}{" "}
-      {profile.last_name}
-    </p>
+            <form className="auth-form" onSubmit={handleRegistration}>
+              <div className="auth-field">
+                <label htmlFor="first-name">First name</label>
+                <input
+                  id="first-name"
+                  required
+                  minLength={2}
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
+              </div>
 
-    <p>
-      Status: {profile.status}
-    </p>
+              <div className="auth-field">
+                <label htmlFor="last-name">Last name</label>
+                <input
+                  id="last-name"
+                  required
+                  minLength={2}
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+              </div>
 
-    <p>
-      Phone: {profile.phone_number ?? "Not provided"}
-    </p>
+              <div className="auth-field">
+                <label htmlFor="phone">Phone number <span>(optional)</span></label>
+                <input
+                  id="phone"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
 
-    {/* Phase 6: Agent Onboarding */}
-    <div style={{ marginTop: "24px" }}>
-      <h3>Agent Onboarding</h3>
+              <button className="button button--dark" type="submit">
+                Complete registration
+              </button>
+            </form>
+          </section>
+        )}
 
-      <p>
-        Complete your personal information,
-        provide your sales background, and
-        prepare for identity verification.
-      </p>
+        {profile && (
+          <section className="app-panel">
+            <p className="app-eyebrow">My passport profile</p>
+            <h2>{profile.first_name} {profile.last_name}</h2>
+            <p>Status: {profile.status}</p>
+            <p>Phone: {profile.phone_number ?? "Not provided"}</p>
 
-      <Link
-        href="/onboarding"
-        style={{
-          display: "inline-block",
-          marginTop: "12px",
-          padding: "12px 20px",
-          backgroundColor: "#2563eb",
-          color: "#ffffff",
-          borderRadius: "8px",
-          textDecoration: "none",
-          fontWeight: 600,
-        }}
-      >
-        Continue Onboarding →
-      </Link>
-    </div>
-  </section>
-)}
-
-
+            <div className="app-panel__action">
+              <h3>Agent onboarding</h3>
+              <p>
+                Complete your personal information, provide your sales background,
+                and prepare for identity verification.
+              </p>
+              <Link className="button button--gold" href="/onboarding">
+                Continue onboarding <span aria-hidden="true">→</span>
+              </Link>
+            </div>
+          </section>
+        )}
+      </div>
     </main>
   );
 }

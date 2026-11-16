@@ -4,6 +4,7 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import AuthFrame from "@/components/AuthFrame";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
@@ -37,39 +38,48 @@ export default function SignupPage() {
   }
 
   return (
-    <main style={{ maxWidth: 420, margin: "60px auto" }}>
-      <h1>Create Agent Account</h1>
-      <p>Register for SalesMesh agent verification.</p>
+    <AuthFrame
+      eyebrow="Create your profile"
+      title="Start with a trusted identity."
+      description="Set up your secure SalesMesh account. We will guide you through the verification details after confirmation."
+    >
+      <form className="auth-form" onSubmit={handleSignup}>
+        <div className="auth-field">
+          <label htmlFor="email">Email address</label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
 
-      <form onSubmit={handleSignup}>
-        <label htmlFor="email">Email</label>
-        <input
-          id="email"
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <div className="auth-field">
+          <label htmlFor="password">Create a password</label>
+          <input
+            id="password"
+            type="password"
+            autoComplete="new-password"
+            required
+            minLength={12}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
 
-        <label htmlFor="password">Password</label>
-        <input
-          id="password"
-          type="password"
-          required
-          minLength={12}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-
-        <button disabled={loading} type="submit">
-          {loading ? "Creating..." : "Sign up"}
+        <button className="button button--dark" disabled={loading} type="submit">
+          {loading ? "Creating your account..." : "Create account"}
         </button>
       </form>
 
-      <p role="status">{message}</p>
-      <p>
-        Already registered? <Link href="/login">Log in</Link>
+      <p className="auth-message" role="status">
+        {message}
       </p>
-    </main>
+      <p className="auth-switch">
+        Already have an account? <Link href="/login">Log in</Link>
+      </p>
+    </AuthFrame>
   );
 }

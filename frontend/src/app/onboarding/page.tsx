@@ -13,6 +13,7 @@ import KycChecklist from "@/components/KycChecklist";
 
 import OnboardingProgress from
   "@/components/OnboardingProgress";
+import AppHeader from "@/components/AppHeader";
 
 import {
   getMyOnboarding,
@@ -112,38 +113,54 @@ export default function OnboardingPage() {
   }
 
   if (loading) {
-    return <main>Loading onboarding...</main>;
+    return (
+      <main className="app-page">
+        <AppHeader />
+        <div className="app-content">
+          <p className="app-eyebrow">Agent onboarding</p>
+          <h1 className="app-title">Loading your next step.</h1>
+        </div>
+      </main>
+    );
   }
 
   if (!data) {
     return (
-      <main>
-        <h1>Agent onboarding</h1>
-        <p role="alert">{message}</p>
-        <Link href="/dashboard">
-          Return to dashboard
-        </Link>
+      <main className="app-page">
+        <AppHeader />
+        <div className="app-content">
+          <p className="app-eyebrow">Agent onboarding</p>
+          <h1 className="app-title">We could not load your profile.</h1>
+          <p className="app-subtitle" role="alert">{message}</p>
+          <Link className="button button--dark" href="/dashboard">
+            Return to dashboard
+          </Link>
+        </div>
       </main>
     );
   }
 
   return (
-    <main
-      style={{
-        maxWidth: 680,
-        margin: "40px auto",
-        padding: "20px",
-      }}
-    >
-      <h1>SalesMesh Agent Onboarding</h1>
+    <main className="app-page">
+      <AppHeader />
+      <div className="app-content workspace-stack">
+      <header className="workspace-heading">
+        <div>
+          <p className="app-eyebrow">Agent onboarding</p>
+          <h1>Build your passport profile.</h1>
+          <p>Three considered steps separate your profile from a trusted verification journey.</p>
+        </div>
+      </header>
 
-      <OnboardingProgress
-        percentage={data.progress.percentage}
-        completedFields={
-          data.progress.completed_fields
-        }
-        totalFields={data.progress.total_fields}
-      />
+      <section className="app-panel">
+        <OnboardingProgress
+          percentage={data.progress.percentage}
+          completedFields={
+            data.progress.completed_fields
+          }
+          totalFields={data.progress.total_fields}
+        />
+      </section>
 
       <p>Step {step} of 3</p>
       <p role="status">{message}</p>
@@ -352,6 +369,7 @@ export default function OnboardingPage() {
   </section>
 )}
 
+      </div>
     </main>
   );
 }

@@ -1,6 +1,8 @@
 
 import { Suspense } from "react";
 
+import AppHeader from "@/components/AppHeader";
+
 import ReviewerCaseClient from "./ReviewerCaseClient";
 
 interface Props {
@@ -23,8 +25,9 @@ export default function ReviewerCasePage({
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen bg-slate-50 px-6 py-10">
-          <div className="mx-auto max-w-4xl">
+        <main className="app-page">
+          <AppHeader />
+          <div className="app-content">
             <p className="text-slate-600">
               Loading verification case...
             </p>

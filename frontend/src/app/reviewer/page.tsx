@@ -7,6 +7,7 @@ import useSWR from "swr";
 import {
   getReviewQueue,
 } from "@/lib/verification/reviewer-api";
+import AppHeader from "@/components/AppHeader";
 
 export default function ReviewerDashboard() {
   const {
@@ -33,9 +34,10 @@ export default function ReviewerDashboard() {
         : null;
 
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900">
-      <div className="mx-auto max-w-6xl space-y-8">
-        <header className="flex flex-wrap items-center justify-between gap-4">
+    <main className="app-page">
+      <AppHeader />
+      <div className="app-content workspace-stack">
+        <header className="workspace-heading">
           <div>
             <p className="text-sm font-semibold uppercase tracking-widest text-blue-700">
               SalesMesh

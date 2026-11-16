@@ -20,6 +20,7 @@ import {
 } from "@/lib/verification/types";
 
 import VerificationStatusBadge from "@/components/verification/VerificationStatusBadge";
+import AppHeader from "@/components/AppHeader";
 
 function formatDate(value: string): string {
   const date = new Date(value);
@@ -111,9 +112,10 @@ export default function AgentVerificationPage() {
   const latestCase = cases[0];
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
-      <div className="mx-auto max-w-5xl space-y-8">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+    <main className="app-page">
+      <AppHeader />
+      <div className="app-content workspace-stack">
+        <div className="workspace-heading">
           <div>
             <p className="text-sm font-semibold uppercase tracking-widest text-blue-700">
               SalesMesh

@@ -45,18 +45,20 @@ export default function BackendStatus() {
   }, []);
 
   if (loading) {
-    return <p>Checking backend connection...</p>;
+    return <p className="system-status">System check in progress</p>;
   }
 
   if (error) {
-    return <p style={{ color: "red" }}>{error}</p>;
+    return (
+      <p className="system-status system-status--error">
+        System check unavailable
+      </p>
+    );
   }
 
   return (
-    <section>
-      <h2>Backend Connection</h2>
-      <p>Status: {health?.status}</p>
-      <p>Service: {health?.service}</p>
-    </section>
+    <p className="system-status">
+      <span aria-hidden="true" /> {health?.service ?? "Verification service"} online
+    </p>
   );
 }

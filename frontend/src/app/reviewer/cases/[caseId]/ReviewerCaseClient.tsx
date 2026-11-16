@@ -13,6 +13,7 @@ import {
 import type {
   ReviewerAction,
 } from "@/lib/verification/reviewer-types";
+import AppHeader from "@/components/AppHeader";
 
 interface Props {
   caseId: string;
@@ -118,8 +119,9 @@ export default function ReviewerCaseClient({
         : null;
 
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900">
-      <div className="mx-auto max-w-4xl space-y-6">
+    <main className="app-page">
+      <AppHeader />
+      <div className="app-content workspace-stack">
         <Link
           href="/reviewer"
           className="text-sm font-medium text-blue-700 hover:underline"
@@ -127,7 +129,7 @@ export default function ReviewerCaseClient({
           Back to Review Queue
         </Link>
 
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="workspace-heading">
           <h1 className="text-3xl font-bold">
             Verification Case Details
           </h1>
