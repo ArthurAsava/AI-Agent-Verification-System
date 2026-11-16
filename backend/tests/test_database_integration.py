@@ -11,6 +11,19 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+SECURED_PUBLIC_TABLES = {
+    "agents",
+    "agent_onboarding",
+    "kyc_documents",
+    "verification_checks",
+    "verification_cases",
+    "verification_reviewers",
+    "fraud_assessments",
+    "audit_logs",
+    "alembic_version",
+}
+
+
 @pytest.fixture(scope="module")
 def connection():
     from app.core.config import get_settings
@@ -60,17 +73,12 @@ def test_rls_enabled_on_all_tables(connection):
             SELECT tablename, rowsecurity
             FROM pg_tables
             WHERE schemaname = 'public'
-              AND tablename IN (
-                  'agents',
-                  'kyc_documents',
-                  'verification_checks',
-                  'fraud_assessments',
-                  'audit_logs'
-              )
-        """)
+              AND tablename = ANY(:tables)
+        """),
+        {"tables": list(SECURED_PUBLIC_TABLES)},
     ).all()
 
-    assert len(rows) == 5
+    assert {row.tablename for row in rows} == SECURED_PUBLIC_TABLES
     assert all(row.rowsecurity for row in rows)
 
 
@@ -87,7 +95,26 @@ def test_expected_rls_policies_exist(connection):
         "agents_select_own",
         "documents_select_own",
         "checks_select_own",
+        "audit_logs_block_direct_api_access",
+        "fraud_assessments_block_direct_api_access",
+        "verification_reviewers_block_direct_api_access",
+        "alembic_version_block_direct_api_access",
     }.issubset(set(rows))
+
+
+def test_client_roles_have_no_direct_public_table_privileges(connection):
+    rows = connection.execute(
+        text("""
+            SELECT table_name, grantee, privilege_type
+            FROM information_schema.role_table_grants
+            WHERE table_schema = 'public'
+              AND table_name = ANY(:tables)
+              AND grantee IN ('PUBLIC', 'anon', 'authenticated')
+        """),
+        {"tables": list(SECURED_PUBLIC_TABLES)},
+    ).all()
+
+    assert rows == []
 
 
 def test_database_migration_applied(connection):

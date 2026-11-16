@@ -10,6 +10,7 @@ from app.core.config import get_settings
 
 
 bearer_scheme = HTTPBearer(auto_error=False)
+MAX_BEARER_TOKEN_LENGTH = 8_192
 
 
 @dataclass(frozen=True)
@@ -34,7 +35,10 @@ async def get_current_user(
     # external authentication request for input that cannot be a Supabase JWT;
     # JWT-shaped values are still verified by Supabase below.
     token = credentials.credentials
-    if len(token.split(".")) != 3:
+    if (
+        len(token) > MAX_BEARER_TOKEN_LENGTH
+        or len(token.split(".")) != 3
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired access token",
