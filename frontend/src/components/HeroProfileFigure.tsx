@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 
 import { getMyAgentProfile } from "@/lib/agent-api";
 import { createClient } from "@/lib/supabase/client";
@@ -35,18 +36,23 @@ export default function HeroProfileFigure() {
 
   useEffect(() => {
     let active = true;
+    let requestId = 0;
     const supabase = createClient();
 
-    async function loadVerifiedVariant() {
-      const { data } = await supabase.auth.getSession();
+    async function loadVariantForSession(session: Session | null) {
+      const currentRequest = ++requestId;
 
-      if (!data.session) return;
+      // The anonymous, faceless profile is always the first state. It also
+      // remains the fallback for accounts without an approved identity yet.
+      if (active) setVariant("neutral");
+      if (!session) return;
 
       try {
         const profile = await getMyAgentProfile();
 
         if (
           active &&
+          currentRequest === requestId &&
           (profile.avatar_variant === "male" ||
             profile.avatar_variant === "female")
         ) {
@@ -58,10 +64,19 @@ export default function HeroProfileFigure() {
       }
     }
 
-    void loadVerifiedVariant();
+    void supabase.auth.getSession().then(({ data }) => {
+      void loadVariantForSession(data.session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      void loadVariantForSession(session);
+    });
 
     return () => {
       active = false;
+      subscription.unsubscribe();
     };
   }, []);
 
@@ -73,22 +88,24 @@ export default function HeroProfileFigure() {
       aria-label={`${assets.label} that changes into a suited professional on hover or focus`}
     >
       <div className="hero-figure__halo" aria-hidden="true" />
-      <Image
-        className="hero-figure__image hero-figure__image--profile"
-        src={assets.profile}
-        alt=""
-        fill
-        priority
-        sizes="(max-width: 760px) 80vw, 43vw"
-      />
-      <Image
-        className="hero-figure__image hero-figure__image--suit"
-        src={assets.suit}
-        alt=""
-        fill
-        priority
-        sizes="(max-width: 760px) 80vw, 43vw"
-      />
+      <div className="hero-figure__portrait" key={variant}>
+        <Image
+          className="hero-figure__image hero-figure__image--profile"
+          src={assets.profile}
+          alt=""
+          fill
+          priority
+          sizes="(max-width: 760px) 80vw, 43vw"
+        />
+        <Image
+          className="hero-figure__image hero-figure__image--suit"
+          src={assets.suit}
+          alt=""
+          fill
+          priority
+          sizes="(max-width: 760px) 80vw, 43vw"
+        />
+      </div>
       <p className="hero-figure__hint">Hover to suit up</p>
       <div className="hero-figure__card" aria-hidden="true">
         <span>
