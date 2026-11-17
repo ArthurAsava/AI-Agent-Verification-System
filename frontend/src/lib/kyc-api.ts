@@ -57,14 +57,23 @@ async function authenticatedRequest(
 
   // Do not manually set Content-Type for FormData.
   // The browser must add the multipart boundary.
-  const response = await fetch(
-    `${API_URL}${path}`,
-    {
+  let response: Response;
+
+  try {
+    response = await fetch(
+      `${API_URL}${path}`,
+      {
       ...options,
       headers,
       cache: "no-store",
-    }
-  );
+      },
+    );
+  } catch {
+    throw new KycApiError(
+      "Verity could not reach its local API. Start the backend on port 8000, then refresh this page.",
+      0,
+    );
+  }
 
   if (!response.ok) {
     let message =

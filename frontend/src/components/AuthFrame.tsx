@@ -21,7 +21,7 @@ export default function AuthFrame({
 
       <section className="auth-layout">
         <aside className="auth-intro" aria-hidden="true">
-          <p className="section-kicker">SalesMesh identity</p>
+          <p className="section-kicker">Verity identity</p>
           <p className="auth-intro__number">01</p>
           <div>
             <p className="auth-intro__label">Trusted access begins with</p>

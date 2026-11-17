@@ -24,14 +24,17 @@ export default function SignupPage() {
       password,
       options: {
         emailRedirectTo:
-          `${window.location.origin}/login`,
+          new URL(
+            "/auth/confirm?next=/dashboard",
+            window.location.origin,
+          ).toString(),
       },
     });
 
     setMessage(
       error
         ? error.message
-        : "Check your email to confirm your account, then sign in."
+        : "Check your email to confirm your account. We will take you straight to profile registration."
     );
 
     setLoading(false);
@@ -41,7 +44,7 @@ export default function SignupPage() {
     <AuthFrame
       eyebrow="Create your profile"
       title="Start with a trusted identity."
-      description="Set up your secure SalesMesh account. We will guide you through the verification details after confirmation."
+      description="Set up your secure Verity account. We will guide you through the verification details after confirmation."
     >
       <form className="auth-form" onSubmit={handleSignup}>
         <div className="auth-field">

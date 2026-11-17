@@ -2,6 +2,7 @@
 "use client";
 import KycDocumentManager from "@/components/KycDocumentManager";
 import BiometricSelfieCapture from "@/components/BiometricSelfieCapture";
+import Link from "next/link";
 
 import { useEffect, useState } from "react";
 
@@ -85,6 +86,9 @@ export default function KycChecklist() {
       )}
       <KycDocumentManager />
       <BiometricSelfieCapture />
+      <Link className="button button--gold" href="/dashboard/verification">
+        Track verification status <span aria-hidden="true">→</span>
+      </Link>
     </section>
   );
 }

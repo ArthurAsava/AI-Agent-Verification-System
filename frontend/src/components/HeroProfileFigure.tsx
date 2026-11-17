@@ -106,13 +106,6 @@ export default function HeroProfileFigure() {
           sizes="(max-width: 760px) 80vw, 43vw"
         />
       </div>
-      <p className="hero-figure__hint">Hover to suit up</p>
-      <div className="hero-figure__card" aria-hidden="true">
-        <span>
-          {variant === "neutral" ? "Passport profile" : "Verified profile"}
-        </span>
-        <strong>SM / 001</strong>
-      </div>
     </div>
   );
 }

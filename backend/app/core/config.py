@@ -54,6 +54,18 @@ class Settings(BaseSettings):
         """Return explicit browser origins; wildcard CORS is never allowed."""
 
         raw_origins = self.CORS_ALLOWED_ORIGINS or self.FRONTEND_URL
+
+        # Local development commonly alternates between localhost and the
+        # loopback address. They are distinct browser origins, so allow both
+        # only when the default local frontend URL is in use. Production still
+        # requires explicit HTTPS origins below.
+        if (
+            not self.is_production
+            and self.CORS_ALLOWED_ORIGINS is None
+            and self.FRONTEND_URL == "http://localhost:3000"
+        ):
+            raw_origins = "http://localhost:3000,http://127.0.0.1:3000"
+
         origins = [
             origin.strip().rstrip("/")
             for origin in raw_origins.split(",")

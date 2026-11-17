@@ -12,7 +12,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "SalesMesh | Agent Verification",
+  title: "Verity | Agent Verification",
   description:
     "AI-enabled agent registration and identity verification",
 };

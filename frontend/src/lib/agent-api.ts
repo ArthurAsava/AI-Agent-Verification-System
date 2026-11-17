@@ -23,6 +23,16 @@ export interface AgentRegistration {
   phone_number?: string | null;
 }
 
+export class AgentApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = "AgentApiError";
+  }
+}
+
 async function authorizedRequest(
   path: string,
   options: RequestInit = {}
@@ -36,9 +46,12 @@ async function authorizedRequest(
     throw new Error("Please sign in first");
   }
 
-  const response = await fetch(
-    `${API_URL}${path}`,
-    {
+  let response: Response;
+
+  try {
+    response = await fetch(
+      `${API_URL}${path}`,
+      {
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -47,17 +60,24 @@ async function authorizedRequest(
           `Bearer ${data.session.access_token}`,
       },
       cache: "no-store",
-    }
-  );
+      },
+    );
+  } catch {
+    throw new AgentApiError(
+      "Verity could not reach its local API. Start the backend on port 8000, then refresh this page.",
+      0,
+    );
+  }
 
   if (!response.ok) {
     const body = await response
       .json()
       .catch(() => ({}));
 
-    throw new Error(
+    throw new AgentApiError(
       body.detail ??
-      `Request failed: ${response.status}`
+      `Request failed: ${response.status}`,
+      response.status,
     );
   }
 

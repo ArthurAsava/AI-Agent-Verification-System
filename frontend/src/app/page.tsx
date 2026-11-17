@@ -8,7 +8,7 @@ const steps = [
   {
     number: "01",
     title: "Build your profile",
-    copy: "Create a secure SalesMesh account and complete the details that make your identity yours.",
+    copy: "Create a secure Verity account and complete the details that make your identity yours.",
   },
   {
     number: "02",
@@ -30,7 +30,7 @@ export default function Home() {
       <section className="hero" aria-labelledby="hero-title">
         <div className="hero__grain" aria-hidden="true" />
         <div className="hero__copy">
-          <p className="section-kicker section-kicker--light">SalesMesh / Identity system</p>
+          <p className="section-kicker section-kicker--light">Verity / Identity system</p>
           <h1 id="hero-title">
             Know who you&apos;re
             <span>building with.</span>
@@ -61,7 +61,7 @@ export default function Home() {
         <div className="landing-intro__grid">
           <h2>Verification that feels like momentum, not a roadblock.</h2>
           <p>
-            SalesMesh brings registration, document review, and identity status
+            Verity brings registration, document review, and identity status
             into one considered experience—so trusted agents can get to work.
           </p>
         </div>

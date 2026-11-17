@@ -103,7 +103,7 @@ export default function AdministratorDashboard() {
     const normalizedUserId = targetUserId.trim();
 
     if (!normalizedUserId) {
-      setActionError("Enter the existing SalesMesh user UUID.");
+      setActionError("Enter the existing Verity user UUID.");
       return;
     }
 
@@ -126,7 +126,7 @@ export default function AdministratorDashboard() {
         <header className="workspace-heading">
           <div>
             <p className="text-sm font-semibold uppercase tracking-widest text-blue-700">
-              SalesMesh
+              Verity
             </p>
             <h1 className="mt-2 text-3xl font-bold">
               Verification Administration
@@ -208,7 +208,7 @@ export default function AdministratorDashboard() {
               <div className="border-b p-5">
                 <h2 className="text-xl font-semibold">Reviewer access</h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Only existing SalesMesh accounts can receive reviewer or administrator access.
+                  Only existing Verity accounts can receive reviewer or administrator access.
                 </p>
               </div>
               {reviewers.length === 0 ? (
@@ -270,7 +270,7 @@ export default function AdministratorDashboard() {
             <form onSubmit={submitNewReviewer} className="h-fit rounded-xl border bg-white p-6 shadow-sm">
               <h2 className="text-xl font-semibold">Add or update staff access</h2>
               <p className="mt-2 text-sm text-slate-600">
-                Use the UUID of an existing SalesMesh account. Emails are never listed in this screen.
+                Use the UUID of an existing Verity account. Emails are never listed in this screen.
               </p>
               <label className="mt-5 block text-sm font-medium">
                 User UUID

@@ -118,7 +118,7 @@ export default function AgentVerificationPage() {
         <div className="workspace-heading">
           <div>
             <p className="text-sm font-semibold uppercase tracking-widest text-blue-700">
-              SalesMesh
+              Verity
             </p>
 
             <h1 className="mt-2 text-3xl font-bold">
@@ -225,7 +225,7 @@ export default function AgentVerificationPage() {
                       : ""}
                   </p>
                   <p className="text-slate-600">
-                    SalesMesh review state: {diditKycStatus.check_status.replaceAll("_", " ")}. A provider result does not automatically approve your account.
+                    Verity review state: {diditKycStatus.check_status.replaceAll("_", " ")}. A provider result does not automatically approve your account.
                   </p>
                   {Object.keys(diditKycStatus.actions).length > 0 && (
                     <ul className="list-disc space-y-1 pl-5 text-slate-600">

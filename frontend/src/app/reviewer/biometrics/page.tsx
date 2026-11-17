@@ -149,7 +149,7 @@ export default function BiometricReviewPage() {
         <header className="workspace-heading">
           <div>
             <p className="text-sm font-semibold uppercase tracking-widest text-blue-700">
-              SalesMesh
+              Verity
             </p>
             <h1 className="mt-2 text-3xl font-bold">
               Biometric Evidence Review
@@ -257,7 +257,7 @@ export default function BiometricReviewPage() {
                         <div className="rounded-lg border border-violet-100 bg-violet-50 p-4">
                           <p className="text-sm font-semibold">Hosted provider capture</p>
                           <p className="mt-1 text-xs text-slate-600">
-                            Didit captured biometric evidence in its hosted flow; SalesMesh retains only the limited provider summary below.
+                            Didit captured biometric evidence in its hosted flow; Verity retains only the limited provider summary below.
                           </p>
                         </div>
                       )}
@@ -315,7 +315,7 @@ export default function BiometricReviewPage() {
                           </ul>
                         )}
                         <p className="mt-2 text-xs text-violet-800">
-                          Provider output is evidence only; your recorded human decision controls the SalesMesh outcome.
+                          Provider output is evidence only; your recorded human decision controls the Verity outcome.
                         </p>
                       </div>
                     )}

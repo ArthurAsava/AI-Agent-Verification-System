@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import {
   AgentProfile,
+  AgentApiError,
   getMyAgentProfile,
   registerAgent,
 } from "@/lib/agent-api";
@@ -45,10 +46,15 @@ export default function DashboardPage() {
         if (!active) return;
 
         if (
-          error instanceof Error &&
-          error.message === "Agent profile not found"
+          error instanceof AgentApiError &&
+          error.status === 404
         ) {
           setNeedsRegistration(true);
+        } else if (
+          error instanceof AgentApiError &&
+          error.status === 401
+        ) {
+          router.replace("/login");
         } else {
           setMessage(
             error instanceof Error
@@ -73,6 +79,7 @@ export default function DashboardPage() {
   ) {
     e.preventDefault();
     setMessage("");
+    setLoading(true);
 
     try {
       const agent = await registerAgent({
@@ -83,12 +90,15 @@ export default function DashboardPage() {
 
       setProfile(agent);
       setNeedsRegistration(false);
+      router.push("/onboarding");
     } catch (error) {
       setMessage(
         error instanceof Error
           ? error.message
           : "Registration failed"
       );
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -127,7 +137,7 @@ export default function DashboardPage() {
         <p className="app-eyebrow">Agent workspace</p>
         <h1 className="app-title">Your profile, in motion.</h1>
         <p className="app-subtitle">
-          Everything you need to move your SalesMesh verification forward lives here.
+          Everything you need to move your Verity verification forward lives here.
         </p>
 
         <div className="app-toolbar">

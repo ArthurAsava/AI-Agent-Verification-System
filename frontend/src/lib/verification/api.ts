@@ -22,9 +22,12 @@ export async function getAgentVerification(
   accessToken: string,
   signal?: AbortSignal,
 ): Promise<AgentVerificationResponse> {
-  const response = await fetch(
-    `${API_URL}/verification/me`,
-    {
+  let response: Response;
+
+  try {
+    response = await fetch(
+      `${API_URL}/verification/me`,
+      {
       method: "GET",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -32,8 +35,18 @@ export async function getAgentVerification(
       },
       cache: "no-store",
       signal,
-    },
-  );
+      },
+    );
+  } catch (error) {
+    if (signal?.aborted) {
+      throw error;
+    }
+
+    throw new VerificationApiError(
+      "Verity could not reach its local API. Start the backend on port 8000, then refresh this page.",
+      0,
+    );
+  }
 
   if (!response.ok) {
     if (response.status === 401) {

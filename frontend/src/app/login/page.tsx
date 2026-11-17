@@ -70,7 +70,7 @@ export default function LoginPage() {
         </div>
 
         <button className="button button--dark" disabled={loading} type="submit">
-          {loading ? "Signing you in..." : "Log in to SalesMesh"}
+          {loading ? "Signing you in..." : "Log in to Verity"}
         </button>
       </form>
 
@@ -81,7 +81,7 @@ export default function LoginPage() {
         {errorMessage}
       </p>
       <p className="auth-switch">
-        New to SalesMesh? <Link href="/signup">Create your account</Link>
+        New to Verity? <Link href="/signup">Create your account</Link>
       </p>
     </AuthFrame>
   );

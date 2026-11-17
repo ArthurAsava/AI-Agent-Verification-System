@@ -30,11 +30,11 @@ export default function AppHeader({
 
   return (
     <header className="site-header">
-      <Link className="brand" href="/" aria-label="SalesMesh home">
+      <Link className="brand" href="/" aria-label="Verity home">
         <span className="brand-mark" aria-hidden="true">
-          SM
+          V
         </span>
-        <span>SalesMesh</span>
+        <span>Verity</span>
       </Link>
 
       <nav className="site-nav" aria-label="Primary navigation">
@@ -51,7 +51,7 @@ export default function AppHeader({
               Log in
             </Link>
             <Link className="button button--dark button--small" href="/signup">
-              Create account
+              Sign up
             </Link>
           </>
         )}

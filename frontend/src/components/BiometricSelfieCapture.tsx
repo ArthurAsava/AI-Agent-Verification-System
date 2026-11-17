@@ -173,7 +173,7 @@ export default function BiometricSelfieCapture() {
           disabled={cameraActive || capturing}
           onChange={(event) => setConsent(event.target.checked)}
         />{" "}
-        I consent to SalesMesh storing this selfie solely for identity
+        I consent to Verity storing this selfie solely for identity
         verification and human review.
       </label>
 

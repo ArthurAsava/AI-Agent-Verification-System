@@ -36,6 +36,22 @@ def test_explicit_frontend_origin_can_preflight_api_request():
     )
 
 
+def test_loopback_frontend_origin_can_preflight_api_request():
+    with TestClient(app) as client:
+        response = client.options(
+            "/api/v1/health",
+            headers={
+                "Origin": "http://127.0.0.1:3000",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == (
+        "http://127.0.0.1:3000"
+    )
+
+
 def test_untrusted_host_is_rejected_before_route_execution():
     with TestClient(app) as client:
         response = client.get("/", headers={"Host": "untrusted.example"})
