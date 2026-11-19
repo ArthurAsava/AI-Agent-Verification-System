@@ -19,6 +19,7 @@ from app.services.didit_service import (
     DiditConflictError,
     DiditConsentRequiredError,
     DiditDecisionRetrievalError,
+    DiditEligibilityError,
     DiditNotFoundError,
     DiditSubmissionError,
     DiditWebhookError,
@@ -57,6 +58,8 @@ async def create_didit_session(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except DiditConsentRequiredError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except DiditEligibilityError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except DiditConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except DiditSubmissionError as exc:

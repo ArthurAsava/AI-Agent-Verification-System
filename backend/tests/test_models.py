@@ -34,6 +34,14 @@ def test_agent_user_id_is_unique():
     assert agents.c.user_id.unique is True
 
 
+def test_agent_has_identity_profile_fields():
+    agents = Base.metadata.tables["agents"]
+
+    assert {"date_of_birth", "primary_residence", "nationality"} <= set(
+        agents.c.keys()
+    )
+
+
 def test_document_references_agent():
     documents = Base.metadata.tables["kyc_documents"]
 

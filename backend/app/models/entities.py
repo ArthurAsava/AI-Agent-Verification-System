@@ -1,7 +1,7 @@
 
 import enum
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import Column, Table
@@ -9,6 +9,7 @@ from sqlalchemy import Column, Table
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     Enum,
     ForeignKey,
@@ -79,6 +80,18 @@ class Agent(Base):
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     phone_number: Mapped[str | None] = mapped_column(String(30))
+    date_of_birth: Mapped[date | None] = mapped_column(
+        Date,
+        nullable=True,
+    )
+    primary_residence: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    nationality: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
     avatar_variant: Mapped[AvatarVariant | None] = mapped_column(
         Enum(
             AvatarVariant,

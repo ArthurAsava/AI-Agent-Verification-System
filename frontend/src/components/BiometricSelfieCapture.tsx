@@ -18,7 +18,13 @@ function errorMessage(error: unknown): string {
     : "Unable to save your biometric selfie.";
 }
 
-export default function BiometricSelfieCapture() {
+type BiometricSelfieCaptureProps = {
+  diditOnly?: boolean;
+};
+
+export default function BiometricSelfieCapture({
+  diditOnly = false,
+}: BiometricSelfieCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [consent, setConsent] = useState(false);
@@ -161,21 +167,23 @@ export default function BiometricSelfieCapture() {
     <section style={{ marginTop: 32 }} aria-labelledby="biometric-heading">
       <h3 id="biometric-heading">Biometric selfie</h3>
       <p>
-        Capture a current selfie for a human review, or use Didit&apos;s hosted
-        verification flow for provider-managed document, selfie, and liveness
-        checks. Neither path automatically approves an account.
+        {diditOnly
+          ? "Didit will collect the required face-match and liveness evidence in its hosted sandbox. This does not grant automatic approval."
+          : "Capture a current selfie for a human review, or use Didit’s hosted verification flow for provider-managed document, selfie, and liveness checks. Neither path automatically approves an account."}
       </p>
 
-      <label style={{ display: "block", marginBottom: 12 }}>
-        <input
-          type="checkbox"
-          checked={consent}
-          disabled={cameraActive || capturing}
-          onChange={(event) => setConsent(event.target.checked)}
-        />{" "}
-        I consent to Verity storing this selfie solely for identity
-        verification and human review.
-      </label>
+      {!diditOnly && (
+        <label style={{ display: "block", marginBottom: 12 }}>
+          <input
+            type="checkbox"
+            checked={consent}
+            disabled={cameraActive || capturing}
+            onChange={(event) => setConsent(event.target.checked)}
+          />{" "}
+          I consent to Verity storing this selfie solely for identity
+          verification and human review.
+        </label>
+      )}
 
       <label style={{ display: "block", marginBottom: 12 }}>
         <input
@@ -197,7 +205,7 @@ export default function BiometricSelfieCapture() {
         {startingDidit ? "Opening Didit..." : "Start Didit verification"}
       </button>
 
-      {!cameraActive ? (
+      {!diditOnly && !cameraActive ? (
         <button
           type="button"
           disabled={!consent || capturing || startingDidit}
@@ -205,7 +213,7 @@ export default function BiometricSelfieCapture() {
         >
           Open camera
         </button>
-      ) : (
+      ) : !diditOnly ? (
         <>
           <video
             ref={videoRef}
@@ -238,7 +246,7 @@ export default function BiometricSelfieCapture() {
             </button>
           </div>
         </>
-      )}
+      ) : null}
 
       {error && <p role="alert" style={{ color: "#b91c1c" }}>{error}</p>}
       {message && <p role="status" style={{ color: "#166534" }}>{message}</p>}

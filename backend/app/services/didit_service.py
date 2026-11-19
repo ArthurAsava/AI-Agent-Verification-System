@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
 from app.models.entities import Agent, AuditLog, CheckStatus, VerificationCheck
+from app.models.verification_case import VerificationCase
 from app.services.kyc_upload_service import BIOMETRIC_DIDIT_CHECK_TYPE
 from app.services.verification.fraud_refresh_service import (
     refresh_fraud_assessment_after_provider_sync,
@@ -54,6 +55,10 @@ class DiditNotFoundError(DiditError):
 
 
 class DiditConsentRequiredError(DiditError):
+    pass
+
+
+class DiditEligibilityError(DiditError):
     pass
 
 
@@ -183,6 +188,16 @@ def _prepare_session(
     ).scalar_one_or_none()
     if agent is None:
         raise DiditNotFoundError("Agent profile not found.")
+
+    submitted_document = db.execute(
+        select(VerificationCase.id)
+        .where(VerificationCase.agent_id == agent.id)
+        .limit(1)
+    ).scalar_one_or_none()
+    if submitted_document is None:
+        raise DiditEligibilityError(
+            "Submit an identity document before starting face verification."
+        )
 
     existing = db.execute(
         select(VerificationCheck)

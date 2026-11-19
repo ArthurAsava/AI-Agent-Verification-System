@@ -5,6 +5,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { loginErrorMessage } from "@/lib/auth-error-messages";
 import AuthFrame from "@/components/AuthFrame";
 
 export default function LoginPage() {
@@ -12,30 +13,56 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   async function handleLogin(e: FormEvent) {
     e.preventDefault();
     setLoading(true);
     setErrorMessage("");
 
-    const supabase = createClient();
-
-    const { error } =
-      await supabase.auth.signInWithPassword({
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
+      if (error) {
+        setErrorMessage(loginErrorMessage(error));
+        return;
+      }
+
+      router.push("/dashboard");
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(loginErrorMessage(error));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    setGoogleLoading(true);
+    setErrorMessage("");
+
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: new URL(
+          "/auth/confirm?next=/dashboard",
+          window.location.origin,
+        ).toString(),
+      },
+    });
+
     if (error) {
       setErrorMessage(error.message);
-      setLoading(false);
-      return;
+      setGoogleLoading(false);
     }
-
-    router.push("/dashboard");
-    router.refresh();
   }
 
   return (
@@ -54,25 +81,57 @@ export default function LoginPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            disabled={loading || googleLoading}
           />
         </div>
 
         <div className="auth-field">
           <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          <div className="password-input">
+            <input
+              id="password"
+              type={passwordVisible ? "text" : "password"}
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading || googleLoading}
+            />
+            <button
+              className="password-input__toggle"
+              type="button"
+              aria-label={passwordVisible ? "Hide password" : "Show password"}
+              aria-pressed={passwordVisible}
+              onClick={() => setPasswordVisible((visible) => !visible)}
+              disabled={loading || googleLoading}
+            >
+              {passwordVisible ? "Hide" : "Show"}
+            </button>
+          </div>
         </div>
 
-        <button className="button button--dark" disabled={loading} type="submit">
+        <button
+          className="button button--dark"
+          disabled={loading || googleLoading}
+          type="submit"
+        >
           {loading ? "Signing you in..." : "Log in to Verity"}
         </button>
       </form>
+
+      <div className="auth-divider" aria-hidden="true">
+        <span>or</span>
+      </div>
+
+      <button
+        className="auth-google-button"
+        type="button"
+        onClick={() => void handleGoogleSignIn()}
+        disabled={loading || googleLoading}
+      >
+        <span className="auth-google-button__mark" aria-hidden="true">G</span>
+        {googleLoading ? "Opening Google..." : "Continue with Google"}
+      </button>
 
       <p
         className={`auth-message${errorMessage ? " auth-message--error" : ""}`}

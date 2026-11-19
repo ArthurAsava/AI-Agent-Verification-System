@@ -16,6 +16,7 @@ from app.services.didit_service import (
     DiditConfig,
     DiditConsentRequiredError,
     DiditDecisionRetrievalError,
+    DiditEligibilityError,
     get_didit_kyc_status,
     get_didit_config,
     record_didit_webhook,
@@ -96,9 +97,11 @@ async def test_session_uses_hosted_flow_without_local_biometric_media(monkeypatc
         },
     )
     agent = SimpleNamespace(id=agent_id, user_id=user_id)
+    submitted_document = SimpleNamespace(id=uuid.uuid4())
     db = MagicMock()
     db.execute.return_value.scalar_one_or_none.side_effect = [
         agent,
+        submitted_document,
         None,
         check,
     ]
@@ -126,6 +129,21 @@ async def test_session_uses_hosted_flow_without_local_biometric_media(monkeypatc
     )
     assert "selfie_content" not in captured["check"].result_data["didit"]
     assert check.status == CheckStatus.NEEDS_REVIEW
+
+
+@pytest.mark.asyncio
+async def test_session_requires_a_submitted_identity_document(monkeypatch):
+    agent = SimpleNamespace(id=uuid.uuid4(), user_id=uuid.uuid4())
+    db = MagicMock()
+    db.execute.return_value.scalar_one_or_none.side_effect = [agent, None]
+    monkeypatch.setattr(service, "get_didit_config", configured_didit)
+
+    with pytest.raises(DiditEligibilityError):
+        await start_didit_session(
+            db=db,
+            user_id=agent.user_id,
+            biometric_consent=True,
+        )
 
 
 def test_valid_didit_webhook_never_changes_biometric_check_status(monkeypatch):

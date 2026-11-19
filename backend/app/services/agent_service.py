@@ -27,6 +27,10 @@ def create_agent(
         first_name=payload.first_name,
         last_name=payload.last_name,
         phone_number=payload.phone_number,
+        date_of_birth=payload.date_of_birth,
+        primary_residence=payload.primary_residence,
+        nationality=payload.nationality,
+        avatar_variant=payload.avatar_variant,
     )
 
     db.add(agent)

@@ -48,7 +48,13 @@ function errorMessage(error: unknown) {
     : "An unexpected error occurred.";
 }
 
-export default function KycDocumentManager() {
+type KycDocumentManagerProps = {
+  onVerificationSubmitted?: () => void;
+};
+
+export default function KycDocumentManager({
+  onVerificationSubmitted,
+}: KycDocumentManagerProps) {
   const [documents, setDocuments] = useState<KycDocument[]>([]);
   const [documentType, setDocumentType] = useState(
     "national_id_front"
@@ -163,6 +169,7 @@ export default function KycDocumentManager() {
 
       setMessage(result.message);
       await loadDocuments();
+      onVerificationSubmitted?.();
     } catch (err) {
       setError(errorMessage(err));
     } finally {

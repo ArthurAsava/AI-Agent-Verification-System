@@ -1,9 +1,10 @@
 
 import { createClient } from "@/lib/supabase/client";
 
-const API_URL =
+const API_URL = (
   process.env.NEXT_PUBLIC_API_URL ??
-  "http://127.0.0.1:8000";
+  "http://127.0.0.1:8000"
+).replace(/\/$/, "");
 
 export interface AgentProfile {
   id: string;
@@ -11,6 +12,9 @@ export interface AgentProfile {
   first_name: string;
   last_name: string;
   phone_number: string | null;
+  date_of_birth: string | null;
+  primary_residence: string | null;
+  nationality: string | null;
   avatar_variant: "male" | "female" | null;
   status: string;
   created_at: string;
@@ -21,6 +25,20 @@ export interface AgentRegistration {
   first_name: string;
   last_name: string;
   phone_number?: string | null;
+  date_of_birth: string;
+  primary_residence: string;
+  nationality: string;
+  avatar_variant: "male" | "female";
+}
+
+export interface AgentProfileUpdate {
+  first_name?: string;
+  last_name?: string;
+  phone_number?: string | null;
+  date_of_birth?: string;
+  primary_residence?: string;
+  nationality?: string;
+  avatar_variant?: "male" | "female";
 }
 
 export class AgentApiError extends Error {
@@ -99,6 +117,15 @@ export async function registerAgent(
 export async function getMyAgentProfile():
   Promise<AgentProfile> {
   return authorizedRequest("/api/v1/agents/me");
+}
+
+export async function updateMyAgentProfile(
+  payload: AgentProfileUpdate,
+): Promise<AgentProfile> {
+  return authorizedRequest("/api/v1/agents/me", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }
 
 
