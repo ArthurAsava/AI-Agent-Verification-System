@@ -52,6 +52,37 @@ def test_storage_object_url():
     )
 
 
+def test_storage_object_url_can_target_a_recorded_bucket():
+    storage = SupabaseStorageService(
+        supabase_url="https://example.supabase.co",
+        service_role_key="test-key",
+        bucket="agent-kyc-documents",
+    )
+
+    url = storage._object_url(
+        "agent-123/document-456/document.pdf",
+        bucket="previous-kyc-documents",
+    )
+
+    assert url == (
+        "https://example.supabase.co/storage/v1/object/"
+        "previous-kyc-documents/"
+        "agent-123/document-456/document.pdf"
+    )
+
+
+@pytest.mark.parametrize("bucket", ["", "other/bucket", "other\\bucket", "other%bucket"])
+def test_storage_rejects_invalid_buckets(bucket):
+    storage = SupabaseStorageService(
+        supabase_url="https://example.supabase.co",
+        service_role_key="test-key",
+        bucket="agent-kyc-documents",
+    )
+
+    with pytest.raises(ValueError):
+        storage._object_url("agent/document.pdf", bucket=bucket)
+
+
 @pytest.mark.parametrize(
     "path",
     [

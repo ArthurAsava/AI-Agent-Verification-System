@@ -2,10 +2,9 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
 
+import { useAuthSession } from "@/components/AuthSessionProvider";
 import { getMyAgentProfile } from "@/lib/agent-api";
-import { createClient } from "@/lib/supabase/client";
 
 type AvatarVariant = "male" | "female" | "neutral";
 
@@ -31,54 +30,68 @@ const figureAssets: Record<
 };
 
 export default function HeroProfileFigure() {
-  const [variant, setVariant] = useState<AvatarVariant>("neutral");
+  const { session } = useAuthSession();
+  const signedInUserId = session?.user.id;
+  const [resolvedAvatar, setResolvedAvatar] = useState<{
+    userId: string;
+    variant: AvatarVariant;
+  } | null>(null);
+  const variant =
+    signedInUserId && resolvedAvatar?.userId === signedInUserId
+      ? resolvedAvatar.variant
+      : "neutral";
   const assets = figureAssets[variant];
 
   useEffect(() => {
     let active = true;
-    let requestId = 0;
-    const supabase = createClient();
 
-    async function loadVariantForSession(session: Session | null) {
-      const currentRequest = ++requestId;
+    // An account without a saved profile sex deliberately keeps the anonymous
+    // mannequin. The model must never infer a person's sex from their name or
+    // other unrelated account details.
+    if (!signedInUserId) {
+      return () => {
+        active = false;
+      };
+    }
+    const userId = signedInUserId;
 
-      // The anonymous, faceless profile is always the first state. It also
-      // remains the fallback for accounts without an approved identity yet.
-      if (active) setVariant("neutral");
-      if (!session) return;
-
+    async function loadVariantForSignedInUser() {
       try {
         const profile = await getMyAgentProfile();
 
         if (
           active &&
-          currentRequest === requestId &&
           (profile.avatar_variant === "male" ||
             profile.avatar_variant === "female")
         ) {
-          setVariant(profile.avatar_variant);
+          setResolvedAvatar({
+            userId,
+            variant: profile.avatar_variant,
+          });
+        } else if (active) {
+          setResolvedAvatar({
+            userId,
+            variant: "neutral",
+          });
         }
       } catch {
-        // A new account may not have an agent profile yet. The neutral figure
-        // remains the intentional fallback until identity approval completes.
+        // A newly confirmed account may not yet have a profile. Keep the
+        // anonymous mannequin until a verified profile value is available.
+        if (active) {
+          setResolvedAvatar({
+            userId,
+            variant: "neutral",
+          });
+        }
       }
     }
 
-    void supabase.auth.getSession().then(({ data }) => {
-      void loadVariantForSession(data.session);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      void loadVariantForSession(session);
-    });
+    void loadVariantForSignedInUser();
 
     return () => {
       active = false;
-      subscription.unsubscribe();
     };
-  }, []);
+  }, [signedInUserId]);
 
   return (
     <div

@@ -108,6 +108,80 @@ button {
   transition: opacity 160ms ease;
 }
 
+.profile-menu {
+  position: relative;
+}
+
+.profile-menu summary {
+  list-style: none;
+}
+
+.profile-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.profile-menu__trigger {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border: 1.5px solid var(--gold);
+  border-radius: 50%;
+  background: var(--mint);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.77rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  transition: transform 150ms ease, background 150ms ease;
+}
+
+.profile-menu__trigger:hover,
+.profile-menu[open] .profile-menu__trigger {
+  transform: translate(-1px, -1px);
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.profile-menu__panel {
+  position: absolute;
+  top: calc(100% + 0.7rem);
+  right: 0;
+  z-index: 30;
+  min-width: 10.5rem;
+  border: 1.5px solid var(--gold);
+  border-radius: 0.55rem;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.profile-menu__panel a,
+.profile-menu__panel button {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0.8rem 0.9rem;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.profile-menu__panel a:hover,
+.profile-menu__panel button:hover:not(:disabled),
+.profile-menu__panel button:focus-visible {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.profile-menu__panel button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
 .site-nav__login:hover,
 .site-nav > a:not(.button):hover,
 .site-nav__back:hover {
@@ -920,6 +994,156 @@ button {
   font-size: 1.25rem;
 }
 
+.profile-summary__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.profile-summary__heading .app-eyebrow {
+  margin: 0;
+}
+
+.profile-summary__heading .button {
+  min-height: 2.5rem;
+}
+
+.profile-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 1rem;
+  margin-top: 1.55rem;
+}
+
+.profile-details-grid > div {
+  min-width: 0;
+  border-top: 1px solid var(--line);
+  padding-top: 0.7rem;
+}
+
+.profile-details-grid dt {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.profile-details-grid dd {
+  margin-top: 0.32rem;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 650;
+}
+
+.security-page {
+  max-width: 62rem;
+}
+
+.security-current-session {
+  position: relative;
+}
+
+.security-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 1.1rem;
+  border: 1px solid rgba(125, 225, 168, 0.38);
+  border-radius: 99rem;
+  padding: 0.38rem 0.66rem;
+  color: #9af1bd;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.security-status span {
+  width: 0.46rem;
+  height: 0.46rem;
+  border-radius: 50%;
+  background: #7de1a8;
+  box-shadow: 0 0 0 3px rgba(125, 225, 168, 0.14);
+}
+
+.security-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+
+.security-details-grid dt {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.security-details-grid dd {
+  margin-top: 0.35rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.security-session-list {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  list-style: none;
+}
+
+.security-session-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, var(--mint) 65%, transparent);
+  padding: 0.95rem 1rem;
+}
+
+.security-session-list strong,
+.security-session-list span {
+  display: block;
+}
+
+.security-session-list strong {
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+.security-session-list span {
+  margin-top: 0.32rem;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.security-session-list em {
+  flex: 0 0 auto;
+  color: var(--green-bright);
+  font-size: 0.71rem;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.security-empty {
+  margin-top: 1.5rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
 .workspace-stack button:not(.button),
 .workspace-stack a:not(.button) {
   border-radius: 0.46rem;
@@ -966,6 +1190,81 @@ button {
 
 .workspace-stack form button + button {
   margin-left: 0.65rem;
+}
+
+.button--danger {
+  border-color: #ff718c;
+  background: #8d1731;
+  color: #fff6f8;
+}
+
+.button--danger:hover:not(:disabled) {
+  background: #b52041;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.button:disabled:hover {
+  transform: none;
+  box-shadow: var(--shadow);
+}
+
+.security-delete-account {
+  border-color: rgba(255, 113, 140, 0.76);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, #70152b 25%, var(--paper)),
+    var(--paper)
+  );
+}
+
+.security-delete-account .app-eyebrow {
+  color: #ff9db0;
+}
+
+.security-delete-account > .button {
+  margin-top: 1.3rem;
+}
+
+.security-delete-form {
+  max-width: 30rem;
+  margin-top: 1.3rem;
+  border-top: 1px solid rgba(255, 157, 176, 0.35);
+  padding-top: 1rem;
+}
+
+.security-delete-form .password-input {
+  display: block;
+  margin-top: 0.45rem;
+}
+
+.security-delete-form .password-input input {
+  border-color: rgba(255, 157, 176, 0.74);
+}
+
+.security-delete-form .password-input__toggle {
+  color: #ffb5c3;
+}
+
+.security-delete-error {
+  margin-top: 0.85rem !important;
+  color: #ff9caf !important;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.security-delete-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.security-delete-form__actions .button + .button {
+  margin-left: 0;
 }
 
 @media (max-width: 760px) {

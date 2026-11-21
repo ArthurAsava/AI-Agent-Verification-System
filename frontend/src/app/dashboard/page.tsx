@@ -15,7 +15,9 @@ import {
 } from "@/lib/agent-api";
 import { createClient } from "@/lib/supabase/client";
 
-type ProfileForm = AgentRegistration;
+type ProfileForm = Omit<AgentRegistration, "avatar_variant"> & {
+  avatar_variant: AgentRegistration["avatar_variant"] | "";
+};
 
 const EMPTY_PROFILE: ProfileForm = {
   first_name: "",
@@ -24,7 +26,7 @@ const EMPTY_PROFILE: ProfileForm = {
   date_of_birth: "",
   primary_residence: "",
   nationality: "",
-  avatar_variant: "male",
+  avatar_variant: "",
 };
 
 function ageFromDateOfBirth(value: string): string {
@@ -63,8 +65,21 @@ function formFromProfile(profile: AgentProfile): ProfileForm {
     date_of_birth: profile.date_of_birth ?? "",
     primary_residence: profile.primary_residence ?? "",
     nationality: profile.nationality ?? "",
-    avatar_variant: profile.avatar_variant ?? "male",
+    avatar_variant: profile.avatar_variant ?? "",
   };
+}
+
+function formatDate(value: string | null): string {
+  if (!value) return "Not provided";
+
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
 }
 
 function statusCopy(status: string): string {
@@ -88,6 +103,7 @@ export default function DashboardPage() {
   const [form, setForm] = useState<ProfileForm>(EMPTY_PROFILE);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -138,11 +154,22 @@ export default function DashboardPage() {
   async function handleProfileSubmit(event: FormEvent) {
     event.preventDefault();
     setMessage("");
+
+    const avatarVariant = form.avatar_variant;
+    if (
+      avatarVariant !== "male" &&
+      avatarVariant !== "female"
+    ) {
+      setMessage("Select the sex recorded on your identity document.");
+      return;
+    }
+
     setSaving(true);
 
     try {
       const payload: AgentRegistration = {
         ...form,
+        avatar_variant: avatarVariant,
         phone_number: form.phone_number?.trim() || null,
         first_name: form.first_name.trim(),
         last_name: form.last_name.trim(),
@@ -154,7 +181,9 @@ export default function DashboardPage() {
         : await registerAgent(payload);
 
       setProfile(saved);
-      router.push("/documents");
+      setForm(formFromProfile(saved));
+      setEditingProfile(false);
+      setMessage("Your details have been saved.");
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -192,6 +221,7 @@ export default function DashboardPage() {
   }
 
   const needsIdentityDetails = !profile || profileNeedsIdentityDetails(profile);
+  const showProfileForm = needsIdentityDetails || editingProfile;
 
   return (
     <main className="app-page">
@@ -214,10 +244,12 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {needsIdentityDetails ? (
+        {showProfileForm ? (
           <section className="app-panel" aria-labelledby="identity-details-heading">
             <p className="app-eyebrow">Step 1 of 3</p>
-            <h2 id="identity-details-heading">Tell us about yourself.</h2>
+            <h2 id="identity-details-heading">
+              {editingProfile ? "Edit your details." : "Tell us about yourself."}
+            </h2>
             <p>These details must match the identity document you submit next.</p>
 
             <form className="auth-form" onSubmit={handleProfileSubmit}>
@@ -240,6 +272,7 @@ export default function DashboardPage() {
               <div className="auth-field">
                 <label htmlFor="sex">Sex</label>
                 <select id="sex" required value={form.avatar_variant} onChange={(event) => setForm({ ...form, avatar_variant: event.target.value as "male" | "female" })} disabled={saving}>
+                  <option value="" disabled>Select the sex on your identity document</option>
                   <option value="male">Male</option>
                   <option value="female">Female</option>
                 </select>
@@ -261,25 +294,77 @@ export default function DashboardPage() {
               </div>
 
               <button className="button button--dark" type="submit" disabled={saving}>
-                {saving ? "Saving your details..." : "Save and continue to documents"}
+                {saving
+                  ? "Saving your details..."
+                  : editingProfile
+                    ? "Save changes"
+                    : "Save details"}
               </button>
+              {editingProfile && profile && (
+                <button
+                  className="button button--gold"
+                  type="button"
+                  disabled={saving}
+                  onClick={() => {
+                    setForm(formFromProfile(profile));
+                    setEditingProfile(false);
+                    setMessage("");
+                  }}
+                >
+                  Cancel
+                </button>
+              )}
             </form>
           </section>
         ) : (
-          <section className="app-panel" aria-labelledby="profile-status-heading">
-            <p className="app-eyebrow">Profile status</p>
-            <h2 id="profile-status-heading">
-              {profile.status === "under_review" ? "Your profile is being reviewed." : "Your profile is ready."}
-            </h2>
-            <p>{statusCopy(profile.status)}</p>
-            <p><strong>{profile.first_name} {profile.last_name}</strong>{" · "}{profile.nationality}</p>
+          <>
+            <section className="app-panel profile-summary" aria-labelledby="profile-details-heading">
+              <div className="profile-summary__heading">
+                <div>
+                  <p className="app-eyebrow">Your details</p>
+                  <h2 id="profile-details-heading">
+                    {profile.first_name} {profile.last_name}
+                  </h2>
+                </div>
+                <button
+                  className="button button--gold"
+                  type="button"
+                  onClick={() => {
+                    setForm(formFromProfile(profile));
+                    setEditingProfile(true);
+                    setMessage("");
+                  }}
+                >
+                  Edit
+                </button>
+              </div>
 
-            {profile.status === "pending" && (
-              <Link className="button button--gold" href="/documents">
-                Continue to documents <span aria-hidden="true">→</span>
-              </Link>
-            )}
-          </section>
+              <dl className="profile-details-grid">
+                <div><dt>First name</dt><dd>{profile.first_name}</dd></div>
+                <div><dt>Last name</dt><dd>{profile.last_name}</dd></div>
+                <div><dt>Date of birth</dt><dd>{formatDate(profile.date_of_birth)}</dd></div>
+                <div><dt>Age</dt><dd>{ageFromDateOfBirth(profile.date_of_birth ?? "")}</dd></div>
+                <div><dt>Sex</dt><dd>{profile.avatar_variant === "female" ? "Female" : "Male"}</dd></div>
+                <div><dt>Primary residence</dt><dd>{profile.primary_residence}</dd></div>
+                <div><dt>Nationality</dt><dd>{profile.nationality}</dd></div>
+                <div><dt>Phone number</dt><dd>{profile.phone_number || "Not provided"}</dd></div>
+              </dl>
+            </section>
+
+            <section className="app-panel" aria-labelledby="profile-status-heading">
+              <p className="app-eyebrow">Profile status</p>
+              <h2 id="profile-status-heading">
+                {profile.status === "under_review" ? "Your profile is being reviewed." : "Your profile is ready."}
+              </h2>
+              <p>{statusCopy(profile.status)}</p>
+
+              {profile.status === "pending" && (
+                <Link className="button button--gold" href="/documents">
+                  Continue to documents <span aria-hidden="true">→</span>
+                </Link>
+              )}
+            </section>
+          </>
         )}
       </div>
     </main>

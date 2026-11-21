@@ -60,7 +60,32 @@ class SupabaseStorageService:
         }
 
     
-    def _object_url(self, path: str) -> str:
+    @staticmethod
+    def _validate_bucket(bucket: str) -> str:
+        """Validate a Storage bucket name before building a service URL."""
+
+        if not isinstance(bucket, str) or not bucket:
+            raise ValueError("Invalid storage bucket")
+
+        if any(
+            character in bucket for character in ("/", "\\", "%")
+        ):
+            raise ValueError("Invalid storage bucket")
+
+        if any(
+            ord(character) < 32 or ord(character) == 127
+            for character in bucket
+        ):
+            raise ValueError("Invalid storage bucket")
+
+        return bucket
+
+    def _object_url(
+        self,
+        path: str,
+        *,
+        bucket: str | None = None,
+    ) -> str:
         """Build a safely encoded private Storage object URL."""
 
         if not isinstance(path, str) or not path:
@@ -86,7 +111,10 @@ class SupabaseStorageService:
         if "%" in path:
             raise ValueError("Invalid storage object path")
 
-        encoded_bucket = quote(self.bucket, safe="")
+        selected_bucket = self._validate_bucket(
+            self.bucket if bucket is None else bucket
+        )
+        encoded_bucket = quote(selected_bucket, safe="")
         encoded_path = quote(path, safe="/")
 
         return (
@@ -163,10 +191,15 @@ class SupabaseStorageService:
 
         return response.content
 
-    async def delete(self, path: str) -> None:
+    async def delete(
+        self,
+        path: str,
+        *,
+        bucket: str | None = None,
+    ) -> None:
         """Delete an object for cleanup operations."""
 
-        url = self._object_url(path)
+        url = self._object_url(path, bucket=bucket)
 
         try:
             async with httpx.AsyncClient(

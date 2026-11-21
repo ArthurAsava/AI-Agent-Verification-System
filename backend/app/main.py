@@ -51,6 +51,9 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
+    # Chrome treats localhost -> 127.0.0.1 requests as Private Network Access.
+    # Keep this limited to development and the explicit local origins above.
+    allow_private_network=not settings.is_production,
 )
 
 app.add_middleware(

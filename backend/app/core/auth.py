@@ -1,4 +1,6 @@
 
+import base64
+import json
 import uuid
 from dataclasses import dataclass
 
@@ -17,6 +19,23 @@ MAX_BEARER_TOKEN_LENGTH = 8_192
 class CurrentUser:
     id: uuid.UUID
     email: str | None
+    # This is extracted only after Supabase has validated the access token.
+    # It identifies the Auth session for display, never for authorization.
+    session_id: uuid.UUID | None = None
+
+
+def _session_id_from_validated_token(token: str) -> uuid.UUID | None:
+    """Read the standard session_id claim after Supabase validates the JWT."""
+
+    try:
+        encoded_payload = token.split(".")[1]
+        padded_payload = encoded_payload + "=" * (-len(encoded_payload) % 4)
+        payload = json.loads(
+            base64.urlsafe_b64decode(padded_payload).decode("utf-8")
+        )
+        return uuid.UUID(payload["session_id"])
+    except (IndexError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return None
 
 
 async def get_current_user(
@@ -108,4 +127,5 @@ async def get_current_user(
     return CurrentUser(
         id=user_id,
         email=user_data.get("email"),
+        session_id=_session_id_from_validated_token(token),
     )
