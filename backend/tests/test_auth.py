@@ -44,6 +44,12 @@ def test_account_sessions_requires_token():
     assert response.status_code == 401
 
 
+def test_account_capabilities_requires_token():
+    response = client.get("/api/v1/auth/capabilities")
+
+    assert response.status_code == 401
+
+
 def test_account_deletion_requires_token():
     response = client.post(
         "/api/v1/auth/delete-account",
@@ -79,6 +85,32 @@ def test_authenticated_identity():
         assert response.status_code == 200
         assert response.json()["id"] == str(user_id)
         assert response.json()["email"] == "test@example.com"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_account_capabilities_use_the_server_managed_admin_role():
+    user_id = uuid.uuid4()
+
+    class FakeResult:
+        def scalar_one_or_none(self):
+            return user_id
+
+    class FakeDb:
+        def execute(self, _statement):
+            return FakeResult()
+
+    def fake_user():
+        return CurrentUser(id=user_id, email="admin@example.com")
+
+    app.dependency_overrides[get_current_user] = fake_user
+    app.dependency_overrides[get_db] = lambda: FakeDb()
+
+    try:
+        response = client.get("/api/v1/auth/capabilities")
+
+        assert response.status_code == 200
+        assert response.json() == {"is_admin": True}
     finally:
         app.dependency_overrides.clear()
 

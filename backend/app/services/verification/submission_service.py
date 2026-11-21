@@ -11,6 +11,10 @@ from sqlalchemy.exc import IntegrityError
 from app.core.database import SessionLocal
 from app.models.entities import Agent, AgentStatus, KYCDocument
 from app.models.verification_case import VerificationCase, utc_now
+from app.services.kyc_upload_service import (
+    DOCUMENT_REQUIREMENTS_MESSAGE,
+    has_complete_document_set,
+)
 from app.services.storage_service import SupabaseStorageService
 from app.services.verification.decision_contracts import CaseStatus
 from app.services.verification.persistence import VerificationIntegrityError
@@ -83,6 +87,16 @@ def _start_submission_sync(
         if document.document_type not in ANALYZABLE_DOCUMENT_TYPES:
             raise VerificationIntegrityError(
                 "This document type cannot be used for identity analysis."
+            )
+
+        document_types = db.execute(
+            select(KYCDocument.document_type).where(
+                KYCDocument.agent_id == agent.id
+            )
+        ).scalars().all()
+        if not has_complete_document_set(document_types):
+            raise VerificationIntegrityError(
+                DOCUMENT_REQUIREMENTS_MESSAGE
             )
 
         if not document.sha256_checksum:

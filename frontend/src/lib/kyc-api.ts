@@ -17,6 +17,27 @@ export interface KycDocument {
   biometric_check_id?: string | null;
 }
 
+const REQUIRED_DOCUMENT_TYPE_SETS = [
+  ["national_id_front", "national_id_back"],
+  ["passport", "proof_of_address"],
+] as const;
+
+export const DOCUMENT_REQUIREMENTS_MESSAGE =
+  "Upload both sides of your National ID, or a passport and proof of address, before continuing.";
+
+/** Matches the server-side document policy used to unlock face verification. */
+export function hasCompleteDocumentSet(
+  documents: readonly Pick<KycDocument, "document_type">[],
+) {
+  const documentTypes = new Set(
+    documents.map((document) => document.document_type),
+  );
+
+  return REQUIRED_DOCUMENT_TYPE_SETS.some((requiredTypes) =>
+    requiredTypes.every((type) => documentTypes.has(type)),
+  );
+}
+
 export interface VerificationSubmission {
   case_id: string;
   status: string;

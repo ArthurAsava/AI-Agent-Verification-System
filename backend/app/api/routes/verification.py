@@ -15,6 +15,8 @@ from app.models.entities import Agent, FraudAssessment
 from app.models.verification_case import VerificationCase
 
 from app.schemas.verification_api import (
+    AdminAgentListResponse,
+    AdminAgentRecordResponse,
     AgentVerificationResponse,
     AdminDashboardSummaryResponse,
     ReviewQueueResponse,
@@ -65,10 +67,12 @@ from app.services.verification.submission_service import (
     submit_document_for_verification,
 )
 from app.services.verification.admin_service import (
+    AgentCategoryValidationError,
     ReviewerAccessValidationError,
     ReviewerAccountNotFoundError,
     VerificationAdministrationError,
     get_admin_dashboard_summary,
+    list_agents_by_category,
     list_reviewer_access,
     update_reviewer_access,
 )
@@ -396,6 +400,47 @@ def get_administrator_summary(
         new_cases_last_24_hours=summary.new_cases_last_24_hours,
         agents_under_review=summary.agents_under_review,
         active_reviewers=summary.active_reviewers,
+        waiting_agents=summary.waiting_agents,
+        approved_agents=summary.approved_agents,
+        rejected_agents=summary.rejected_agents,
+    )
+
+
+@router.get(
+    "/admin/agents/{category}",
+    response_model=AdminAgentListResponse,
+)
+def get_administrator_agents_by_category(
+    category: str,
+    db: Session = Depends(get_db),
+    administrator_id: UUID = Depends(require_admin),
+):
+    """Return agent profile details for one protected admin category."""
+
+    try:
+        agents = list_agents_by_category(db, category)
+    except AgentCategoryValidationError as exc:
+        raise HTTPException(status_code=404, detail="Agent category not found.") from exc
+
+    return AdminAgentListResponse(
+        category=category,
+        agents=[
+            AdminAgentRecordResponse(
+                id=agent.id,
+                user_id=agent.user_id,
+                first_name=agent.first_name,
+                last_name=agent.last_name,
+                phone_number=agent.phone_number,
+                date_of_birth=agent.date_of_birth,
+                primary_residence=agent.primary_residence,
+                nationality=agent.nationality,
+                avatar_variant=agent.avatar_variant,
+                status=agent.status.value,
+                created_at=agent.created_at,
+                updated_at=agent.updated_at,
+            )
+            for agent in agents
+        ],
     )
 
 

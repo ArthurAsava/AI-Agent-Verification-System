@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import BiometricSelfieCapture from "@/components/BiometricSelfieCapture";
 import { AgentApiError, getMyAgentProfile } from "@/lib/agent-api";
+import { hasCompleteDocumentSet, listKycDocuments } from "@/lib/kyc-api";
 import { createClient } from "@/lib/supabase/client";
 
 export default function BiometricPage() {
@@ -28,11 +29,18 @@ export default function BiometricPage() {
       }
 
       try {
-        const profile = await getMyAgentProfile();
+        const [profile, documents] = await Promise.all([
+          getMyAgentProfile(),
+          listKycDocuments(),
+        ]);
         if (!active) return;
 
-        if (profile.status !== "under_review") {
+        if (
+          profile.status !== "under_review" ||
+          !hasCompleteDocumentSet(documents)
+        ) {
           router.replace("/documents");
+          return;
         }
       } catch (error) {
         if (!active) return;

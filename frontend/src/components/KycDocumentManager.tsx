@@ -10,6 +10,8 @@ import {
   uploadKycDocument,
   downloadKycDocument,
   submitKycDocumentForVerification,
+  DOCUMENT_REQUIREMENTS_MESSAGE,
+  hasCompleteDocumentSet,
   type KycDocument,
 } from "@/lib/kyc-api";
 
@@ -50,10 +52,12 @@ function errorMessage(error: unknown) {
 
 type KycDocumentManagerProps = {
   onVerificationSubmitted?: () => void;
+  onDocumentRequirementsChange?: (complete: boolean) => void;
 };
 
 export default function KycDocumentManager({
   onVerificationSubmitted,
+  onDocumentRequirementsChange,
 }: KycDocumentManagerProps) {
   const [documents, setDocuments] = useState<KycDocument[]>([]);
   const [documentType, setDocumentType] = useState(
@@ -74,6 +78,7 @@ export default function KycDocumentManager({
   const loadDocuments = useCallback(async () => {
     const result = await listKycDocuments();
     setDocuments(result);
+    return result;
   }, []);
 
   useEffect(() => {
@@ -94,6 +99,12 @@ export default function KycDocumentManager({
       active = false;
     };
   }, []);
+
+  const documentsComplete = hasCompleteDocumentSet(documents);
+
+  useEffect(() => {
+    onDocumentRequirementsChange?.(documentsComplete);
+  }, [documentsComplete, onDocumentRequirementsChange]);
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     setError("");
@@ -131,16 +142,21 @@ export default function KycDocumentManager({
     setMessage("");
 
     try {
-      const uploaded = await uploadKycDocument(documentType, file);
-      await loadDocuments();
+      await uploadKycDocument(documentType, file);
+      const updatedDocuments = await loadDocuments();
 
       setFile(null);
 
-      if (canSubmitForVerification(uploaded)) {
-        await handleVerification(uploaded);
+      if (hasCompleteDocumentSet(updatedDocuments)) {
+        const verificationDocument = updatedDocuments.find(
+          canSubmitForVerification,
+        );
+        if (verificationDocument) {
+          await handleVerification(verificationDocument);
+        }
       } else {
         setMessage(
-          "Document uploaded. Upload a National ID front or passport to start identity verification."
+          `Document uploaded. ${DOCUMENT_REQUIREMENTS_MESSAGE}`
         );
       }
 
@@ -213,6 +229,11 @@ export default function KycDocumentManager({
       <p>
         Accepted formats: PDF, PNG and JPEG.
         Maximum file size: 5 MiB.
+      </p>
+      <p>
+        {documentsComplete
+          ? "Both required documents are uploaded. Submit your identity document for review to continue."
+          : DOCUMENT_REQUIREMENTS_MESSAGE}
       </p>
 
       <form onSubmit={handleUpload}>
@@ -319,14 +340,18 @@ export default function KycDocumentManager({
                 <button
                   type="button"
                   disabled={
-                    downloadingId !== null || verifyingId !== null
+                    !documentsComplete ||
+                    downloadingId !== null ||
+                    verifyingId !== null
                   }
                   onClick={() => void handleVerification(doc)}
                   style={{ marginLeft: 12 }}
                 >
                   {verifyingId === doc.document_id
                     ? "Submitting..."
-                    : "Start verification"}
+                    : documentsComplete
+                      ? "Start verification"
+                      : "Upload both documents first"}
                 </button>
               )}
             </li>

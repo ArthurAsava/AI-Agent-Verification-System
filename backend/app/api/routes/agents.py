@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import CurrentUser, get_current_user
 from app.core.database import get_db
+from app.core.reviewer_auth import has_active_administrator_access
 from app.schemas.agent import (
     AgentCreate,
     AgentResponse,
@@ -42,7 +43,12 @@ def register_agent(
         )
 
     try:
-        return create_agent(db, user.id, payload)
+        return create_agent(
+            db,
+            user.id,
+            payload,
+            auto_approve=has_active_administrator_access(db, user.id),
+        )
     except IntegrityError:
         db.rollback()
         raise HTTPException(
@@ -87,4 +93,9 @@ def update_my_agent_profile(
             detail="Agent profile not found",
         )
 
-    return update_agent(db, agent, payload)
+    return update_agent(
+        db,
+        agent,
+        payload,
+        auto_approve=has_active_administrator_access(db, user.id),
+    )

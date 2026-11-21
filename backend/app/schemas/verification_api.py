@@ -1,7 +1,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -90,6 +90,29 @@ class AdminDashboardSummaryResponse(BaseModel):
     new_cases_last_24_hours: int = Field(ge=0)
     agents_under_review: int = Field(ge=0)
     active_reviewers: int = Field(ge=0)
+    waiting_agents: int = Field(ge=0)
+    approved_agents: int = Field(ge=0)
+    rejected_agents: int = Field(ge=0)
+
+
+class AdminAgentRecordResponse(BaseModel):
+    id: UUID
+    user_id: UUID
+    first_name: str
+    last_name: str
+    phone_number: str | None
+    date_of_birth: date | None
+    primary_residence: str | None
+    nationality: str | None
+    avatar_variant: str | None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class AdminAgentListResponse(BaseModel):
+    category: Literal["waiting", "approved", "rejected"]
+    agents: list[AdminAgentRecordResponse]
 
 
 class ReviewerAccessEntry(BaseModel):

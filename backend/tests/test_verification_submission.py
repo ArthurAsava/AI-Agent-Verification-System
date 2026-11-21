@@ -10,11 +10,18 @@ from app.services.verification.decision_contracts import CaseStatus
 from app.services.verification.submission_service import (
     VerificationSubmissionResult,
 )
+from app.services.verification.persistence import VerificationIntegrityError
 
 
 def query_result(value):
     result = MagicMock()
     result.scalar_one_or_none.return_value = value
+    return result
+
+
+def rows_result(values):
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = values
     return result
 
 
@@ -42,6 +49,7 @@ def test_new_submission_creates_analyzing_case(monkeypatch):
     db.execute.side_effect = [
         query_result(agent),
         query_result(document),
+        rows_result(["national_id_front", "national_id_back"]),
         query_result(None),
     ]
 
@@ -86,6 +94,7 @@ def test_existing_final_case_is_reused_without_reanalysis(monkeypatch):
     db.execute.side_effect = [
         query_result(agent),
         query_result(document),
+        rows_result(["passport", "proof_of_address"]),
         query_result(existing),
     ]
     monkeypatch.setattr(module, "SessionLocal", lambda: session_context(db))
@@ -101,6 +110,36 @@ def test_existing_final_case_is_reused_without_reanalysis(monkeypatch):
         started=False,
     )
     db.add.assert_not_called()
+    db.commit.assert_not_called()
+
+
+def test_submission_requires_a_complete_document_pair(monkeypatch):
+    user_id = uuid4()
+    agent_id = uuid4()
+    document_id = uuid4()
+
+    agent = SimpleNamespace(id=agent_id, status=AgentStatus.PENDING)
+    document = SimpleNamespace(
+        id=document_id,
+        agent_id=agent_id,
+        document_type="national_id_front",
+        sha256_checksum="a" * 64,
+    )
+    db = MagicMock()
+    db.execute.side_effect = [
+        query_result(agent),
+        query_result(document),
+        rows_result(["national_id_front"]),
+    ]
+    monkeypatch.setattr(module, "SessionLocal", lambda: session_context(db))
+
+    with pytest.raises(VerificationIntegrityError, match="both sides"):
+        module._start_submission_sync(
+            user_id=user_id,
+            document_id=document_id,
+        )
+
+    assert agent.status is AgentStatus.PENDING
     db.commit.assert_not_called()
 
 

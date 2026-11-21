@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -26,6 +26,19 @@ class ReviewerAccessValidationError(VerificationAdministrationError):
     pass
 
 
+class AgentCategoryValidationError(VerificationAdministrationError):
+    pass
+
+
+AGENT_CATEGORIES: dict[str, tuple[AgentStatus, ...]] = {
+    # Include pending profiles so every regular agent who has begun onboarding
+    # remains visible to administrators until a staff decision is recorded.
+    "waiting": (AgentStatus.PENDING, AgentStatus.UNDER_REVIEW),
+    "approved": (AgentStatus.APPROVED,),
+    "rejected": (AgentStatus.REJECTED,),
+}
+
+
 @dataclass(frozen=True)
 class AdminDashboardSummary:
     awaiting_review_cases: int
@@ -33,6 +46,9 @@ class AdminDashboardSummary:
     new_cases_last_24_hours: int
     agents_under_review: int
     active_reviewers: int
+    waiting_agents: int
+    approved_agents: int
+    rejected_agents: int
 
 
 @dataclass(frozen=True)
@@ -41,6 +57,22 @@ class ReviewerAccessRecord:
     is_active: bool
     is_admin: bool
     created_at: datetime
+
+
+@dataclass(frozen=True)
+class AdminAgentRecord:
+    id: uuid.UUID
+    user_id: uuid.UUID
+    first_name: str
+    last_name: str
+    phone_number: str | None
+    date_of_birth: date | None
+    primary_residence: str | None
+    nationality: str | None
+    avatar_variant: str | None
+    status: AgentStatus
+    created_at: datetime
+    updated_at: datetime
 
 
 def _count(db: Session, statement) -> int:
@@ -85,7 +117,63 @@ def get_admin_dashboard_summary(
                 Reviewer.is_active.is_(True)
             ),
         ),
+        waiting_agents=_count(
+            db,
+            select(func.count(Agent.id)).where(
+                Agent.status.in_(AGENT_CATEGORIES["waiting"])
+            ),
+        ),
+        approved_agents=_count(
+            db,
+            select(func.count(Agent.id)).where(
+                Agent.status == AgentStatus.APPROVED
+            ),
+        ),
+        rejected_agents=_count(
+            db,
+            select(func.count(Agent.id)).where(
+                Agent.status == AgentStatus.REJECTED
+            ),
+        ),
     )
+
+
+def list_agents_by_category(
+    db: Session,
+    category: str,
+) -> list[AdminAgentRecord]:
+    """List agent profile data for one administrator-only status category."""
+
+    statuses = AGENT_CATEGORIES.get(category)
+    if statuses is None:
+        raise AgentCategoryValidationError("Unknown agent category.")
+
+    agents = db.execute(
+        select(Agent)
+        .where(Agent.status.in_(statuses))
+        .order_by(Agent.updated_at.desc(), Agent.created_at.desc())
+    ).scalars().all()
+    return [
+        AdminAgentRecord(
+            id=agent.id,
+            user_id=agent.user_id,
+            first_name=agent.first_name,
+            last_name=agent.last_name,
+            phone_number=agent.phone_number,
+            date_of_birth=agent.date_of_birth,
+            primary_residence=agent.primary_residence,
+            nationality=agent.nationality,
+            avatar_variant=(
+                agent.avatar_variant.value
+                if agent.avatar_variant is not None
+                else None
+            ),
+            status=agent.status,
+            created_at=agent.created_at,
+            updated_at=agent.updated_at,
+        )
+        for agent in agents
+    ]
 
 
 def list_reviewer_access(

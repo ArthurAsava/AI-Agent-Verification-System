@@ -5,13 +5,17 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import CurrentUser, get_current_user
 from app.core.database import get_db
+from app.core.reviewer_auth import has_active_administrator_access
 from app.core.security import SlidingWindowRateLimiter
 from app.schemas.account_deletion import (
     AccountDeletionEligibilityResponse,
     AccountDeletionRequest,
     AccountDeletionResponse,
 )
-from app.schemas.session import AccountSessionResponse
+from app.schemas.session import (
+    AccountCapabilitiesResponse,
+    AccountSessionResponse,
+)
 from app.services.account_deletion_service import (
     AccountDeletionForbiddenError,
     AccountDeletionPasswordError,
@@ -61,6 +65,21 @@ def get_authenticated_user(
         "id": str(user.id),
         "email": user.email,
     }
+
+
+@router.get(
+    "/capabilities",
+    response_model=AccountCapabilitiesResponse,
+)
+def get_authenticated_user_capabilities(
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return presentation capabilities derived from database roles only."""
+
+    return AccountCapabilitiesResponse(
+        is_admin=has_active_administrator_access(db, user.id)
+    )
 
 
 @router.get(

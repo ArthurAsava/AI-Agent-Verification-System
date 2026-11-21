@@ -15,9 +15,19 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
-from app.models.entities import Agent, AuditLog, CheckStatus, VerificationCheck
+from app.models.entities import (
+    Agent,
+    AuditLog,
+    CheckStatus,
+    KYCDocument,
+    VerificationCheck,
+)
 from app.models.verification_case import VerificationCase
-from app.services.kyc_upload_service import BIOMETRIC_DIDIT_CHECK_TYPE
+from app.services.kyc_upload_service import (
+    BIOMETRIC_DIDIT_CHECK_TYPE,
+    DOCUMENT_REQUIREMENTS_MESSAGE,
+    has_complete_document_set,
+)
 from app.services.verification.fraud_refresh_service import (
     refresh_fraud_assessment_after_provider_sync,
 )
@@ -189,6 +199,14 @@ def _prepare_session(
     if agent is None:
         raise DiditNotFoundError("Agent profile not found.")
 
+    document_types = db.execute(
+        select(KYCDocument.document_type).where(
+            KYCDocument.agent_id == agent.id
+        )
+    ).scalars().all()
+    if not has_complete_document_set(document_types):
+        raise DiditEligibilityError(DOCUMENT_REQUIREMENTS_MESSAGE)
+
     submitted_document = db.execute(
         select(VerificationCase.id)
         .where(VerificationCase.agent_id == agent.id)
@@ -196,7 +214,7 @@ def _prepare_session(
     ).scalar_one_or_none()
     if submitted_document is None:
         raise DiditEligibilityError(
-            "Submit an identity document before starting face verification."
+            "Submit your identity document for review before starting face verification."
         )
 
     existing = db.execute(

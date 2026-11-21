@@ -89,11 +89,26 @@ function statusCopy(status: string): string {
     case "approved":
       return "Your profile has been approved.";
     case "rejected":
-      return "Your profile needs attention before it can be approved.";
+      return "Your profile was rejected. Review the feedback from Verity before submitting again.";
     case "suspended":
       return "Your profile is currently unavailable. Please contact support.";
     default:
       return "Your identity details are ready. Continue to documents when you are ready.";
+  }
+}
+
+function statusHeading(status: string): string {
+  switch (status) {
+    case "under_review":
+      return "Your profile is being reviewed.";
+    case "approved":
+      return "Your profile has been approved.";
+    case "rejected":
+      return "Your profile was rejected.";
+    case "suspended":
+      return "Your profile is unavailable.";
+    default:
+      return "Your profile is ready.";
   }
 }
 
@@ -354,7 +369,7 @@ export default function DashboardPage() {
             <section className="app-panel" aria-labelledby="profile-status-heading">
               <p className="app-eyebrow">Profile status</p>
               <h2 id="profile-status-heading">
-                {profile.status === "under_review" ? "Your profile is being reviewed." : "Your profile is ready."}
+                {statusHeading(profile.status)}
               </h2>
               <p>{statusCopy(profile.status)}</p>
 

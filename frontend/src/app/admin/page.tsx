@@ -43,6 +43,27 @@ const SUMMARY_CARDS = [
   },
 ] as const;
 
+const AGENT_CATEGORY_CARDS = [
+  {
+    key: "waiting_agents",
+    label: "Waiting for review",
+    description: "Profiles still being prepared or awaiting a staff decision",
+    href: "/admin/agents/waiting",
+  },
+  {
+    key: "approved_agents",
+    label: "Approved & active",
+    description: "Agents whose verification was approved",
+    href: "/admin/agents/approved",
+  },
+  {
+    key: "rejected_agents",
+    label: "Rejected",
+    description: "Agents whose verification was rejected",
+    href: "/admin/agents/rejected",
+  },
+] as const;
+
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -189,17 +210,50 @@ export default function AdministratorDashboard() {
         )}
 
         {summary && (
-          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {SUMMARY_CARDS.map((card) => (
-              <article key={card.key} className="rounded-xl border bg-white p-5 shadow-sm">
-                <p className="text-sm font-medium text-slate-600">{card.label}</p>
-                <p className="mt-2 text-3xl font-bold">
-                  {summary[card.key]}
-                </p>
-                <p className="mt-2 text-sm text-slate-500">{card.description}</p>
-              </article>
-            ))}
-          </section>
+          <>
+            <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {SUMMARY_CARDS.map((card) => (
+                <article key={card.key} className="rounded-xl border bg-white p-5 shadow-sm">
+                  <p className="text-sm font-medium text-slate-600">{card.label}</p>
+                  <p className="mt-2 text-3xl font-bold">
+                    {summary[card.key]}
+                  </p>
+                  <p className="mt-2 text-sm text-slate-500">{card.description}</p>
+                </article>
+              ))}
+            </section>
+
+            <section className="app-panel" aria-labelledby="agent-categories-heading">
+              <p className="app-eyebrow">Agent directory</p>
+              <h2 id="agent-categories-heading">Agents by approval status</h2>
+              <p>
+                Open a category to review the profile information for every
+                agent in that part of the workflow.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-3" style={{ marginTop: "1.5rem" }}>
+                {AGENT_CATEGORY_CARDS.map((category) => (
+                  <Link
+                    key={category.key}
+                    href={category.href}
+                    className="rounded-xl border bg-white p-5 shadow-sm"
+                  >
+                    <p className="text-sm font-medium text-slate-600">
+                      {category.label}
+                    </p>
+                    <p className="mt-2 text-3xl font-bold">
+                      {summary[category.key]}
+                    </p>
+                    <p className="mt-2 text-sm text-slate-500">
+                      {category.description}
+                    </p>
+                    <span className="mt-4 inline-block text-sm font-semibold text-blue-700">
+                      View agents →
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          </>
         )}
 
         {!loading && !fetchError && (

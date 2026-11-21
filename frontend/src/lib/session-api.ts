@@ -26,6 +26,10 @@ export type AccountDeletionEligibility = {
   eligible: boolean;
 };
 
+export type AccountCapabilities = {
+  is_admin: boolean;
+};
+
 async function getAccessToken() {
   const supabase = createClient();
   const { data, error } = await supabase.auth.getSession();
@@ -83,6 +87,21 @@ export async function getAccountDeletionEligibility(): Promise<AccountDeletionEl
   }
 
   return (await response.json()) as AccountDeletionEligibility;
+}
+
+/** Returns UI capabilities calculated from the server-managed reviewer role. */
+export async function getAccountCapabilities(): Promise<AccountCapabilities> {
+  const response = await accountRequest("/capabilities");
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new SessionApiError(
+      body.detail ?? `Request failed: ${response.status}`,
+      response.status,
+    );
+  }
+
+  return (await response.json()) as AccountCapabilities;
 }
 
 export async function deleteMyAccount(password: string): Promise<void> {

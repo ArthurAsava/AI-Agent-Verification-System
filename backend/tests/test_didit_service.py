@@ -61,6 +61,18 @@ def didit_signature(payload: dict, secret: str) -> str:
     ).hexdigest()
 
 
+def scalar_result(value):
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = value
+    return result
+
+
+def rows_result(values):
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = values
+    return result
+
+
 def test_didit_config_keeps_secrets_server_only():
     config = get_didit_config(configured_settings())
 
@@ -99,11 +111,12 @@ async def test_session_uses_hosted_flow_without_local_biometric_media(monkeypatc
     agent = SimpleNamespace(id=agent_id, user_id=user_id)
     submitted_document = SimpleNamespace(id=uuid.uuid4())
     db = MagicMock()
-    db.execute.return_value.scalar_one_or_none.side_effect = [
-        agent,
-        submitted_document,
-        None,
-        check,
+    db.execute.side_effect = [
+        scalar_result(agent),
+        rows_result(["national_id_front", "national_id_back"]),
+        scalar_result(submitted_document),
+        scalar_result(None),
+        scalar_result(check),
     ]
     captured = {}
 
@@ -135,10 +148,32 @@ async def test_session_uses_hosted_flow_without_local_biometric_media(monkeypatc
 async def test_session_requires_a_submitted_identity_document(monkeypatch):
     agent = SimpleNamespace(id=uuid.uuid4(), user_id=uuid.uuid4())
     db = MagicMock()
-    db.execute.return_value.scalar_one_or_none.side_effect = [agent, None]
+    db.execute.side_effect = [
+        scalar_result(agent),
+        rows_result(["national_id_front", "national_id_back"]),
+        scalar_result(None),
+    ]
     monkeypatch.setattr(service, "get_didit_config", configured_didit)
 
     with pytest.raises(DiditEligibilityError):
+        await start_didit_session(
+            db=db,
+            user_id=agent.user_id,
+            biometric_consent=True,
+        )
+
+
+@pytest.mark.asyncio
+async def test_session_requires_both_identity_documents(monkeypatch):
+    agent = SimpleNamespace(id=uuid.uuid4(), user_id=uuid.uuid4())
+    db = MagicMock()
+    db.execute.side_effect = [
+        scalar_result(agent),
+        rows_result(["national_id_front"]),
+    ]
+    monkeypatch.setattr(service, "get_didit_config", configured_didit)
+
+    with pytest.raises(DiditEligibilityError, match="both sides"):
         await start_didit_session(
             db=db,
             user_id=agent.user_id,

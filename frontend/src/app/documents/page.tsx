@@ -10,12 +10,14 @@ import {
   AgentApiError,
   getMyAgentProfile,
 } from "@/lib/agent-api";
+import { DOCUMENT_REQUIREMENTS_MESSAGE } from "@/lib/kyc-api";
 import { createClient } from "@/lib/supabase/client";
 
 export default function DocumentsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [documentSubmitted, setDocumentSubmitted] = useState(false);
+  const [documentsComplete, setDocumentsComplete] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -77,9 +79,9 @@ export default function DocumentsPage() {
         <header className="workspace-heading">
           <div>
             <p className="app-eyebrow">Step 2 of 3</p>
-            <h1 className="app-title">Submit your identity document.</h1>
+            <h1 className="app-title">Submit your identity documents.</h1>
             <p className="app-subtitle">
-              Upload a clear National ID front or passport, then submit it for review before continuing to the facial verification sandbox.
+              {DOCUMENT_REQUIREMENTS_MESSAGE} Then submit your primary identity document for review before continuing to the facial verification sandbox.
             </p>
           </div>
         </header>
@@ -97,17 +99,31 @@ export default function DocumentsPage() {
           <section className="app-panel">
             <KycDocumentManager
               onVerificationSubmitted={() => setDocumentSubmitted(true)}
+              onDocumentRequirementsChange={setDocumentsComplete}
             />
 
-            {documentSubmitted && (
+            {!documentsComplete ? (
+              <div className="app-panel__action" aria-live="polite">
+                <h2>Upload both required documents.</h2>
+                <p>{DOCUMENT_REQUIREMENTS_MESSAGE}</p>
+              </div>
+            ) : documentSubmitted ? (
               <div className="app-panel__action">
-                <h2>Your document has been submitted.</h2>
+                <h2>Your documents have been submitted.</h2>
                 <p>
-                  Continue to Didit&apos;s sandbox for the final document, face-match, and liveness step.
+                  Continue to Didit&apos;s sandbox for the final face-match and liveness step.
                 </p>
                 <Link className="button button--gold" href="/biometric">
                   Continue to face verification <span aria-hidden="true">→</span>
                 </Link>
+              </div>
+            ) : (
+              <div className="app-panel__action" aria-live="polite">
+                <h2>Submit your identity document for review.</h2>
+                <p>
+                  Both documents are uploaded. Use “Start verification” beside
+                  your National ID front or passport to unlock the final step.
+                </p>
               </div>
             )}
           </section>

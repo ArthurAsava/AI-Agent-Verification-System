@@ -6,6 +6,8 @@ import type {
   BiometricReviewDecisionResponse,
   BiometricReviewQueueResponse,
   AdminDashboardSummary,
+  AdminAgentCategory,
+  AdminAgentListResponse,
   ReviewQueueResponse,
   ReviewerAccessEntry,
   ReviewerAccessListResponse,
@@ -125,6 +127,16 @@ export function getAdminDashboardSummary(
 ): Promise<AdminDashboardSummary> {
   return reviewerRequest<AdminDashboardSummary>(
     "/admin/summary",
+    { signal },
+  );
+}
+
+export function getAdminAgents(
+  category: AdminAgentCategory,
+  signal?: AbortSignal,
+): Promise<AdminAgentListResponse> {
+  return reviewerRequest<AdminAgentListResponse>(
+    `/admin/agents/${encodeURIComponent(category)}`,
     { signal },
   );
 }

@@ -22,6 +22,9 @@ def test_dashboard_summary_contains_only_aggregate_counts():
         scalar_result(4),
         scalar_result(5),
         scalar_result(6),
+        scalar_result(7),
+        scalar_result(8),
+        scalar_result(9),
     ]
 
     summary = module.get_admin_dashboard_summary(db)
@@ -31,6 +34,50 @@ def test_dashboard_summary_contains_only_aggregate_counts():
     assert summary.new_cases_last_24_hours == 4
     assert summary.agents_under_review == 5
     assert summary.active_reviewers == 6
+    assert summary.waiting_agents == 7
+    assert summary.approved_agents == 8
+    assert summary.rejected_agents == 9
+
+
+def test_list_agents_by_category_includes_pending_and_under_review():
+    now = datetime.now(timezone.utc)
+    pending = SimpleNamespace(
+        id=uuid4(),
+        user_id=uuid4(),
+        first_name="Pending",
+        last_name="Agent",
+        phone_number=None,
+        date_of_birth=None,
+        primary_residence=None,
+        nationality=None,
+        avatar_variant=None,
+        status=module.AgentStatus.PENDING,
+        created_at=now,
+        updated_at=now,
+    )
+    under_review = SimpleNamespace(
+        **{
+            **pending.__dict__,
+            "id": uuid4(),
+            "status": module.AgentStatus.UNDER_REVIEW,
+        }
+    )
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = [pending, under_review]
+    db = MagicMock()
+    db.execute.return_value = result
+
+    agents = module.list_agents_by_category(db, "waiting")
+
+    assert [agent.status for agent in agents] == [
+        module.AgentStatus.PENDING,
+        module.AgentStatus.UNDER_REVIEW,
+    ]
+
+
+def test_list_agents_by_category_rejects_unknown_category():
+    with pytest.raises(module.AgentCategoryValidationError):
+        module.list_agents_by_category(MagicMock(), "unknown")
 
 
 def test_administrator_cannot_remove_own_access():

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
@@ -56,9 +57,32 @@ ALLOWED_DOCUMENT_TYPES = frozenset({
     "proof_of_address",
 })
 
+# A user must provide one complete identity-evidence pair before moving to the
+# provider-managed biometric step. The passport path retains a practical
+# alternative for users who do not have a Kenyan National ID.
+REQUIRED_DOCUMENT_TYPE_SETS = (
+    frozenset({"national_id_front", "national_id_back"}),
+    frozenset({"passport", "proof_of_address"}),
+)
+
+DOCUMENT_REQUIREMENTS_MESSAGE = (
+    "Upload both sides of your National ID, or a passport and proof of "
+    "address, before continuing."
+)
+
 BIOMETRIC_SELFIE_DOCUMENT_TYPE = "biometric_selfie"
 BIOMETRIC_SELFIE_CHECK_TYPE = "biometric_selfie_capture"
 BIOMETRIC_DIDIT_CHECK_TYPE = "biometric_didit_hosted_verification"
+
+
+def has_complete_document_set(document_types: Iterable[str]) -> bool:
+    """Return whether the uploaded document types meet one valid pathway."""
+
+    uploaded_types = frozenset(document_types)
+    return any(
+        required_types.issubset(uploaded_types)
+        for required_types in REQUIRED_DOCUMENT_TYPE_SETS
+    )
 
 
 @dataclass(frozen=True)

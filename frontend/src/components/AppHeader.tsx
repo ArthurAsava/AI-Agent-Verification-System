@@ -1,11 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useRouter } from "next/navigation";
 
 import { useAuthSession } from "@/components/AuthSessionProvider";
 import { createClient } from "@/lib/supabase/client";
+import { getAccountCapabilities } from "@/lib/session-api";
 
 type AppHeaderProps = {
   showOverviewLink?: boolean;
@@ -58,6 +64,7 @@ export default function AppHeader({
   const profileMenuRef = useRef<HTMLDetailsElement>(null);
   const { session, user } = useAuthSession();
   const [signingOut, setSigningOut] = useState(false);
+  const [administratorUserId, setAdministratorUserId] = useState<string | null>(null);
   const canReturn = useSyncExternalStore(
     subscribeToBrowserHistory,
     canReturnInBrowser,
@@ -66,6 +73,35 @@ export default function AppHeader({
 
   const isAuthenticated = Boolean(session);
   const userInitials = initialsForUser(user as AuthUser | null);
+  const isAdmin = administratorUserId === session?.user.id;
+
+  useEffect(() => {
+    let active = true;
+
+    if (!session) {
+      return () => {
+        active = false;
+      };
+    }
+
+    void getAccountCapabilities()
+      .then((capabilities) => {
+        if (active) {
+          setAdministratorUserId(
+            capabilities.is_admin ? session.user.id : null,
+          );
+        }
+      })
+      .catch(() => {
+        // The navigation item is only a convenience. The protected admin API
+        // remains the authority even if this capability check is unavailable.
+        if (active) setAdministratorUserId(null);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [session]);
 
   function returnToPreviousPage() {
     try {
@@ -139,6 +175,7 @@ export default function AppHeader({
               </summary>
               <div className="profile-menu__panel">
                 <Link href="/dashboard">My dashboard</Link>
+                {isAdmin && <Link href="/admin">Admin dashboard</Link>}
                 <button
                   type="button"
                   onClick={() => void handleSignOut()}

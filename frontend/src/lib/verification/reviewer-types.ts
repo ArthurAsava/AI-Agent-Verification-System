@@ -58,6 +58,34 @@ export interface AdminDashboardSummary {
   new_cases_last_24_hours: number;
   agents_under_review: number;
   active_reviewers: number;
+  waiting_agents: number;
+  approved_agents: number;
+  rejected_agents: number;
+}
+
+export type AdminAgentCategory =
+  | "waiting"
+  | "approved"
+  | "rejected";
+
+export interface AdminAgentRecord {
+  id: string;
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  phone_number: string | null;
+  date_of_birth: string | null;
+  primary_residence: string | null;
+  nationality: string | null;
+  avatar_variant: "male" | "female" | null;
+  status: "pending" | "under_review" | "approved" | "rejected" | "suspended";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminAgentListResponse {
+  category: AdminAgentCategory;
+  agents: AdminAgentRecord[];
 }
 
 export interface ReviewerAccessEntry {

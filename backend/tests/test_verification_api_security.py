@@ -68,12 +68,19 @@ def test_admin_summary_requires_auth(client):
     assert response.status_code == 401
 
 
+def test_admin_agent_directory_requires_auth(client):
+    response = client.get("/verification/admin/agents/waiting")
+
+    assert response.status_code == 401
+
+
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import Mock
 
 from app.core.auth import CurrentUser, get_current_user
 from app.core.database import get_db
+from app.models.entities import AgentStatus
 
 
 def test_regular_agent_cannot_access_review_queue():
@@ -216,7 +223,7 @@ def test_active_administrator_can_read_dashboard_summary():
         is_admin=True,
     )
     counts = []
-    for value in (3, 2, 4, 5, 6):
+    for value in (3, 2, 4, 5, 6, 7, 8, 9):
         count_result = Mock()
         count_result.scalar_one.return_value = value
         counts.append(count_result)
@@ -240,7 +247,58 @@ def test_active_administrator_can_read_dashboard_summary():
             "new_cases_last_24_hours": 4,
             "agents_under_review": 5,
             "active_reviewers": 6,
+            "waiting_agents": 7,
+            "approved_agents": 8,
+            "rejected_agents": 9,
         }
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_active_administrator_can_read_agent_category():
+    user_id = uuid4()
+    agent_id = uuid4()
+    now = datetime.now(timezone.utc)
+
+    def override_user():
+        return CurrentUser(id=user_id, email="admin@example.test")
+
+    administrator_result = Mock()
+    administrator_result.scalar_one_or_none.return_value = user_id
+    agents_result = Mock()
+    agents_result.scalars.return_value.all.return_value = [
+        SimpleNamespace(
+            id=agent_id,
+            user_id=uuid4(),
+            first_name="Regular",
+            last_name="Agent",
+            phone_number="+254700000000",
+            date_of_birth=None,
+            primary_residence="Nairobi",
+            nationality="Kenyan",
+            avatar_variant=None,
+            status=AgentStatus.UNDER_REVIEW,
+            created_at=now,
+            updated_at=now,
+        )
+    ]
+    mock_db = Mock()
+    mock_db.execute.side_effect = [administrator_result, agents_result]
+
+    def override_db():
+        yield mock_db
+
+    app.dependency_overrides[get_current_user] = override_user
+    app.dependency_overrides[get_db] = override_db
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/verification/admin/agents/waiting")
+
+        assert response.status_code == 200
+        assert response.json()["category"] == "waiting"
+        assert response.json()["agents"][0]["id"] == str(agent_id)
+        assert response.json()["agents"][0]["status"] == "under_review"
     finally:
         app.dependency_overrides.clear()
 

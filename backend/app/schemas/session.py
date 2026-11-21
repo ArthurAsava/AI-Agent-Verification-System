@@ -13,3 +13,9 @@ class AccountSessionResponse(BaseModel):
     expires_at: datetime | None
     user_agent: str | None = Field(default=None, max_length=180)
     is_current: bool
+
+
+class AccountCapabilitiesResponse(BaseModel):
+    """Safe UI capabilities calculated from server-managed roles."""
+
+    is_admin: bool
